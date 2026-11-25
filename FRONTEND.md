@@ -91,6 +91,10 @@ cd frontend && npm run build                   # FastAPI then serves frontend/di
 
 The old single-file dashboard is still at `/legacy`.
 
+Dev-only demo modes (only with `npm run dev`; stripped from the production build): open `/#orbdemo` to cycle the
+orb through every voice state with synthetic audio, and `/#boarddemo` to watch a looping fake request run through
+the call board, radar and units counter without placing any calls. Reload the page after changing the hash.
+
 ### Open issue: echo cancellation
 
 The browser can only remove the agent's voice from the mic if it knows what is being played. Chrome reliably

@@ -82,8 +82,9 @@ These matter for correctness, not style; see `FRONTEND.md` for the full list.
 
 - **A better dashboard:** request form, live call board (SSE `GET /api/stream?request_id=…`), map
   (patient + banks, coloured by call route/status), and the final plan.
-- **Voice in the browser** (ChatGPT-voice-mode style, with interruptions): the plan and the hard parts
-  (echo cancellation, keeping the Sarvam key server-side) are in `FRONTEND.md` → "TODO: voice in the browser".
+- **Voice in the browser** is built (`frontend/`, relay at `WS /api/voice/ws`, key stays server-side). What's
+  left is the echo problem on laptop speakers, see `FRONTEND.md` → "Voice in the browser" and "Open issue: echo cancellation".
+- **Still open:** a map, a clearer final plan view, keyboard control for voice, and frontend tests.
 
 ## Who to ask
 
