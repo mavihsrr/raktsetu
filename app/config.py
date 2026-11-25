@@ -70,6 +70,8 @@ class Settings:
     live_targets: dict[str, str] = field(default_factory=lambda: _parse_live_targets(_env("LIVE_TARGETS")))
     # Our own phone(s) that stand in for the real banks while call_real_banks is off.
     demo_bank_phones: list[str] = field(default_factory=lambda: [p.strip() for p in _env("DEMO_BANK_PHONES").split(",") if p.strip()])
+    # Demo phone(s) that take the donor restock call (there is no real donor registry yet).
+    demo_donor_phones: list[str] = field(default_factory=lambda: [p.strip() for p in _env("DEMO_DONOR_PHONES").split(",") if p.strip()])
 
     # Flagsmith
     flagsmith_key: str = field(default_factory=lambda: _env("FLAGSMITH_ENVIRONMENT_KEY"))

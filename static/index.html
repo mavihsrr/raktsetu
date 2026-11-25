@@ -96,7 +96,7 @@ dialog .t div.agent{background:var(--blue-soft)}
 <body>
 <header>
   <h1>Rakt<span>Setu</span> · blood-centre console</h1>
-  <span class="fict">All banks, donors and numbers are fictional · SIM = simulated call</span>
+  <span class="fict">Banks &amp; stock: live from e-RaktKosh · DEMO LINE = our demo phone stands in for the bank / donor · real banks are never dialled unless <code>call_real_banks</code> is on</span>
   <div class="chips" id="chips"></div>
 </header>
 <main>
@@ -149,12 +149,14 @@ async function loadFlags(){
     $("#chips").innerHTML =
       chip(v.outbound_calls_enabled?"on":"off", `Outbound ${v.outbound_calls_enabled?"ON":"KILLED"}`, ["outbound_calls_enabled", !v.outbound_calls_enabled, v.outbound_calls_enabled?"kill":"enable"]) +
       chip(v.call_mode==="live"?"warn":"", `Mode: ${v.call_mode}`) +
+      chip(v.call_real_banks?"off":"on", v.call_real_banks?"REAL bank numbers":"Banks → demo line") +
+      chip("", `Donor calls ${v.call_donors?"ON (demo line)":"OFF"}`) +
       chip(v.autopilot_mode?"warn":"", `Autopilot ${v.autopilot_mode?"ON":"OFF"}`, ["autopilot_mode", !v.autopilot_mode, "toggle"]) +
       chip("", `Parallel ${v.max_parallel_calls}`) +
       chip("", `Radius ${v.bank_radius_km} km → ×${v.wave2_radius_multiplier}`) +
       chip("", `Donors ${v.donor_radius_km} km`) +
       chip(f.source==="flagsmith"?"on":"warn", `Flags: ${f.source}${f.overridden.length?" + local override":""}`) +
-      chip(f.sarvam_configured?"on":"", f.sarvam_configured?`Sarvam ready · ${f.live_targets.length} live target(s)`:"Sarvam not configured");
+      chip(f.sarvam_configured?"on":"", f.sarvam_configured?`Sarvam ready · demo lines: ${f.demo_lines.banks} bank, ${f.demo_lines.donors} donor`:"Sarvam not configured");
   }catch(e){ $("#chips").innerHTML = `<span class="chip off">flags unavailable</span>`; }
 }
 $("#chips").addEventListener("click", async e => {

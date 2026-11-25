@@ -64,6 +64,7 @@ class Coordinator:
         self.new_event = asyncio.Condition()               # any new event (long-poll + SSE)
         self.live_waiters: dict[str, asyncio.Future] = {}  # call_id -> future(CallResult)
         self.phone_locks: dict[str, asyncio.Lock] = {}
+        self._leads_inflight: dict[tuple, asyncio.Future] = {}
         self._tasks: set[asyncio.Task] = set()
         self._http = httpx.AsyncClient(timeout=5)
 
@@ -139,7 +140,21 @@ class Coordinator:
 
     # ------------------------------------------------------------------ tool: find_leads
     async def find_leads(self, *, blood_group: str, units: Any, location: str | None, deadline_hours: Any = None,
-                   component: str | None = None, requested_by: str = "") -> dict:
+                         component: str | None = None, requested_by: str = "") -> dict:
+        """Identical concurrent calls (the voice agent sometimes fires a tool twice) share one search."""
+        key = (str(blood_group).strip().upper(), str(units).strip(), str(location or "").strip().lower(),
+               str(component or "").strip().lower())
+        task = self._leads_inflight.get(key)
+        if task is None:
+            task = asyncio.ensure_future(self._find_leads(
+                blood_group=blood_group, units=units, location=location, deadline_hours=deadline_hours,
+                component=component, requested_by=requested_by))
+            self._leads_inflight[key] = task
+            task.add_done_callback(lambda _t: self._leads_inflight.pop(key, None))
+        return await asyncio.shield(task)
+
+    async def _find_leads(self, *, blood_group: str, units: Any, location: str | None, deadline_hours: Any = None,
+                          component: str | None = None, requested_by: str = "") -> dict:
         group = parse_blood_group(blood_group)
         comp, assumed = parse_component(component)
         try:
@@ -159,32 +174,57 @@ class Coordinator:
         if not location or not str(location).strip():
             raise InputError("Where is the patient? Tell me the hospital and town or city.")
         location = str(location).strip()
+        # The voice agent sometimes fires the same tool call twice: reuse a matching request from the last 90 s.
+        dup = self.db.one(
+            "SELECT r.id FROM requests r JOIN hospitals h ON h.id=r.hospital_id WHERE r.status='planned' "
+            "AND r.blood_group=? AND r.units=? AND r.component=? AND lower(h.name)=lower(?) AND r.created_at>? "
+            "ORDER BY r.created_at DESC LIMIT 1", (group, n, comp, location, time.time() - 90))
+        if dup:
+            ev = self.db.one("SELECT payload, say FROM events WHERE request_id=? AND type='leads_found' "
+                             "ORDER BY seq DESC LIMIT 1", (dup["id"],))
+            if ev:
+                return {"ok": True, "request_id": dup["id"], **ev["payload"], "say": ev["say"],
+                        "next_action": "Read `say` to the user and wait for an explicit yes before calling start_calls."}
+        rid = _rid()
+        step = lambda say, **kw: self.emit(rid, "progress", kw, say)   # live status for terminal + dashboard
+        await step(f"Searching for {n} unit{'s' if n != 1 else ''} of {spoken_group(group)} near {location}…")
         # Live, every request: place -> state/district -> that district's banks + stock from e-RaktKosh.
         # The voice tool times out at 15 s, so everything here works to an ~11 s deadline.
         t0 = time.monotonic()
         with foreground():
-            place = await geocode_place(location)
+            try:
+                place = await asyncio.wait_for(geocode_place(location), timeout=6.0)
+            except asyncio.TimeoutError:
+                await step("The map service is slow right now.")
+                raise InputError("The map service is slow right now. Please say the place again in a moment.")
             if not place:
+                await step(f"Couldn't find '{location}' on the map.")
                 raise InputError(f"I couldn't find '{location}' on the map. Which hospital and town or city is it?")
             try:
-                where = await resolve(place["state"], place["districts"])
+                left = lambda: max(2.0, 10.5 - (time.monotonic() - t0))
+                where = await asyncio.wait_for(resolve(place["state"], place["districts"]), timeout=left())
                 if not where:
                     raise InputError(f"I found {location} in {place['state'] or 'India'}, but couldn't match its "
                                      "district on the national blood bank portal. Which district is it in?")
                 state_code, district_label, dcodes = where
-                live = await fetch_banks(comp, state_code, dcodes)
-            except PortalError:
+                await step(f"Found it: {district_label} district, {place['state']}. Fetching live stock from e-RaktKosh…")
+                live = await asyncio.wait_for(fetch_banks(comp, state_code, dcodes), timeout=left())
+                await step(f"e-RaktKosh: {len(live)} blood banks in {district_label}, "
+                           f"{sum(1 for b in live if b['stock'] and not b.get('stale'))} with recent stock. Mapping them…")
+            except (PortalError, asyncio.TimeoutError):
+                await step("e-RaktKosh isn't responding.")
                 raise InputError("The national blood bank portal, e-RaktKosh, isn't responding right now. "
                                  "Try again in a minute.")
             # Locate the likeliest banks now; keep going in the background while the user hears the
             # answer, so start_calls ranks on more real distances.
-            budget = min(4.5, 11.0 - (time.monotonic() - t0))
+            budget = min(4.5, 11.5 - (time.monotonic() - t0))
             if budget > 0.8:
                 await locate_banks(live, place, FAST_TERMS, per_bank=False, budget_s=budget)
         unlocated = sum(1 for b in live if "lat" not in b)
+        await step(f"Mapped {len(live) - unlocated} of {len(live)} banks; still mapping the rest in the background.")
         hospital = self._save_place(location, (place["lat"], place["lng"], place["label"]))
         self._save_banks(comp, live)
-        self._spawn(self._locate_more(live, place))
+        self._spawn(self._locate_more(rid, live, place))
         districts = [f"{state_code}:{d}" for d in dcodes]
 
         snap = flags.snapshot()["values"]
@@ -195,9 +235,8 @@ class Coordinator:
         ring = rank_banks(self.db, hospital, group, comp, r1, districts)
         shortlist = ring[:top_n]
         near = [b for b in ring if b["distance_km"] is not None and b["distance_km"] <= r1]
-        donors, excluded = eligible_donors(self.db, hospital, group, rd)
+        donors, excluded = self._donors(hospital, group, rd, snap)
         now = time.time()
-        rid = _rid()
         self.db.insert("requests", {
             "id": rid, "created_at": now, "updated_at": now, "hospital_id": hospital["id"],
             "blood_group": group, "component": comp, "units": n,
@@ -236,7 +275,10 @@ class Coordinator:
                 say += "Live calling is off right now, so I'll list them as leads without phoning. "
         else:
             say += f"e-RaktKosh lists no blood banks with this component in {district_label} district right now. "
-        if donors:
+        if donors and donors[0].get("route") == "demo":
+            say += ("I'll also ring a registered donor on our demo donor line to help restock the bank; "
+                    "donor blood is screened first and doesn't count for this patient. ")
+        elif donors:
             say += (f"I also found {len(donors)} eligible donor{'s' if len(donors) != 1 else ''} who opted in to recall; "
                     "I'd ask them to restock, but donor blood is screened first and doesn't count for this patient. ")
         say += "Shall I start calling now?"
@@ -249,8 +291,8 @@ class Coordinator:
             "banks_not_located": unlocated,
             "shortlist": [self._bank_view(b) for b in shortlist],
             "other_banks": [self._bank_view(b) for b in ring[top_n:top_n + 10]],
-            "donors_eligible": [{"id": d["donor"]["id"], "name": d["donor"]["name"], "distance_km": d["distance_km"]}
-                                for d in donors],
+            "donors_eligible": [{"id": d["donor"]["id"], "name": d["donor"]["name"], "distance_km": d["distance_km"],
+                                 "route": d.get("route")} for d in donors],
             "donors_excluded": [{"name": d["donor"]["name"], "reason": d["reason"]} for d in excluded],
             "portal_units_total": portal_total,
         }
@@ -297,13 +339,17 @@ class Coordinator:
                     p[comp] = {}
                     self.db.update("banks", row["id"], portal=p)
 
-    async def _locate_more(self, live: list[dict], place: dict) -> None:
+    async def _locate_more(self, rid: str, live: list[dict], place: dict) -> None:
         def save(b: dict) -> None:
             self.db.conn.execute("UPDATE banks SET lat=?, lng=? WHERE id=?", (b["lat"], b["lng"], b["id"]))
+        before = sum(1 for b in live if "lat" in b)
         try:
             await locate_banks(live, place, MORE_TERMS, per_bank=True, budget_s=60.0, on_hit=save)
         except Exception:
             log.exception("background bank locating failed")
+        after = sum(1 for b in live if "lat" in b)
+        if after > before:
+            await self.emit(rid, "progress", {}, f"Background mapping done: {after} of {len(live)} banks located.")
 
     def _routing(self, snap: dict) -> str:
         """real: dial the bank's own number; demo: our demo line stands in; none: list as leads only."""
@@ -313,6 +359,17 @@ class Coordinator:
         if live and settings.demo_bank_phones:
             return "demo"
         return "none"
+
+    def _donors(self, hospital: dict, group: str, radius_km: float, snap: dict) -> tuple[list[dict], list[dict]]:
+        """Donors to ring for restock. There is no real donor registry yet, so when live calling is on and
+        DEMO_DONOR_PHONES is set, one demo donor line per phone stands in (anywhere in India).
+        Otherwise the fictional registry below is used, and only simulated. Flag call_donors off = none."""
+        if not snap["call_donors"]:
+            return [], []
+        if self._routing(snap) != "none" and settings.demo_donor_phones:
+            return [{"donor": {"id": f"DEMO-D{i}", "name": "Registered donor"}, "distance_km": None,
+                     "route": "demo", "dial_to": p} for i, p in enumerate(settings.demo_donor_phones, 1)], []
+        return eligible_donors(self.db, hospital, group, radius_km)
 
     # ------------------------------------------------------------------ tool: start_calls
     async def start_calls(self, request_id: str, confirmed: Any) -> dict:
@@ -325,10 +382,11 @@ class Coordinator:
                     "say": "Calls are already under way for this request.", "next_action": "call get_status"}
         hospital = self.db.one("SELECT * FROM hospitals WHERE id=?", (r["hospital_id"],))
         banks = self._shortlist(r, hospital, r["bank_radius_km"])
-        donors, _ = eligible_donors(self.db, hospital, r["blood_group"], r["donor_radius_km"])
+        donors, _ = self._donors(hospital, r["blood_group"], r["donor_radius_km"], flags.snapshot()["values"])
         dialled, demo = self._queue_banks(r, banks, wave=1)
         for d in donors:
-            self._queue(r["id"], "donor", d["donor"], 1, d["distance_km"], None)
+            self._queue(r["id"], "donor", d["donor"], 1, d["distance_km"], None,
+                        route=d.get("route"), dial_to=d.get("dial_to"))
         self.db.update("requests", request_id, status="calling", wave=1, updated_at=time.time())
         paused = not await flags.aget("outbound_calls_enabled")
         say = self._calling_say(banks, dialled, demo, len(donors))
@@ -383,7 +441,7 @@ class Coordinator:
         if dialled:
             bits.append("; ".join(where(b) for b in banks[:dialled]) + (" through the demo line" if demo else ""))
         if donors:
-            bits.append(f"{donors} donor{'s' if donors != 1 else ''}")
+            bits.append(("a donor" if donors == 1 else f"{donors} donors") + " to help restock")
         say = "Calling " + ", and ".join(bits) + " now. I'll update you as they answer."
         if leads:
             say += (f" Also worth phoning yourself, not called by me: " + "; ".join(where(b) for b in leads) + ".")
@@ -582,14 +640,25 @@ class Coordinator:
                 self._poke(r["id"])
                 return
             mode, phone = "live", c["dial_to"]
+        elif c["route"] == "demo":
+            if not live_ok or not await flags.aget("call_donors"):
+                self.db.update("calls", c["id"], status="skipped", mode="lead", ended_at=time.time(),
+                               notes="Not phoned (donor calling switched off before dial).")
+                self._poke(r["id"])
+                return
+            mode, phone = "live", c["dial_to"]
         else:
             phone = settings.live_targets.get(f"donor:{c['target_id']}")
             mode = "live" if live_ok and phone else "sim"
         self.inflight.add(c["id"])
         self.db.update("calls", c["id"], status="dialing", mode=mode, started_at=time.time())
+        who = (f"{c['target_name'].lower() if c['target_type'] == 'donor' else c['target_name']} (via demo line)"
+               if c["route"] == "demo" else
+               f"donor {c['target_name']}" + (" (simulated)" if mode == "sim" else "") if c["target_type"] == "donor"
+               else c["target_name"])
         await self.emit(r["id"], "call_started", {"call_id": c["id"], "target": c["target_name"],
                                                    "target_type": c["target_type"], "mode": mode,
-                                                   "route": c["route"]})
+                                                   "route": c["route"]}, f"Calling {who}…")
         self._spawn(self._run_call(r, c, mode, phone))
 
     def _phone_lock(self, phone: str) -> asyncio.Lock:
@@ -625,7 +694,7 @@ class Coordinator:
         alts = compatible_groups(r["blood_group"], r["component"])[1:]
         v = {"hospital_name": hospital["name"], "blood_group": spoken_group(r["blood_group"]),
              "component": COMPONENTS[r["component"]], "units_needed": r["units"], "request_ref": r["id"],
-             "target_name": c["target_name"],
+             "target_name": "a registered blood donor" if c["target_id"].startswith("DEMO-") else c["target_name"],
              "compatible_alternatives": ", ".join(spoken_group(g) for g in alts) or "none"}
         if r["deadline_at"]:
             v["deadline_minutes"] = max(int((r["deadline_at"] - time.time()) / 60), 0)
@@ -687,13 +756,15 @@ class Coordinator:
         else:
             payload = {"call_id": call_id, "target": c["target_name"], "status": res.status,
                        "willing": res.willing, "mode": c["mode"]}
+            who = (f"The {c['target_name'].lower()}" if c["target_id"].startswith("DEMO-")
+                   else f"Donor {c['target_name']}") + tag
             if res.status == "completed" and res.willing == "yes":
-                say = (f"Donor {c['target_name']}{tag} agreed to donate to restock ({res.notes.lower() or 'soon'}). "
+                say = (f"{who} agreed to donate to restock ({res.notes.lower() or 'soon'}). "
                        "That's for the bank's stock, not counted for this patient.")
             elif res.status == "completed":
-                say = f"Donor {c['target_name']} can't donate right now."
+                say = f"{who} can't donate right now."
             else:
-                say = f"Donor {c['target_name']} didn't answer."
+                say = f"{who} didn't answer."
             await self.emit(r["id"], "donor_result", payload, say)
         self._poke(r["id"])
 
@@ -729,10 +800,34 @@ class Coordinator:
         await self.emit(r["id"], status, {"plan": st["plan"]}, say)
 
     # ------------------------------------------------------------------ restart recovery
+    RESUME_WINDOW_S = 600
+
     async def recover(self) -> int:
-        """Called on startup: resume any request that was mid-calls when the process died."""
+        """Called on startup: resume any request that was mid-calls when the process died.
+
+        A phone call must always follow a human "yes" closely. Every deploy restarts the process, so only
+        a wave a person started in the last RESUME_WINDOW_S is resumed; older ones are closed without
+        dialling anyone else (nobody gets an out-of-the-blue call hours later).
+        """
         resumed = 0
         for r in self.db.q("SELECT * FROM requests WHERE status='calling'"):
+            wave_started = self.db.one("SELECT MAX(queued_at) AS t FROM calls WHERE request_id=?",
+                                       (r["id"],))["t"] or r["updated_at"] or 0
+            if time.time() - wave_started > self.RESUME_WINDOW_S:
+                now = time.time()
+                self.db.conn.execute(
+                    "UPDATE calls SET status='skipped', ended_at=?, notes='Not phoned: backend restarted and this "
+                    "request was too old to resume without a fresh yes.' WHERE request_id=? AND status='queued'",
+                    (now, r["id"]))
+                for c in self.db.q("SELECT * FROM calls WHERE request_id=? AND status='dialing'", (r["id"],)):
+                    if c["mode"] == "live" and c["attempt_id"]:
+                        self.inflight.add(c["id"])            # still collect a call that may be in progress
+                        self._spawn(self._await_orphan(c["id"]))
+                    else:
+                        self.db.update("calls", c["id"], status="failed", ended_at=now,
+                                       notes="interrupted by restart (not re-dialled)")
+                await self._finish(r, "unresolved")
+                continue
             reset = 0
             for c in self.db.q("SELECT * FROM calls WHERE request_id=? AND status='dialing'", (r["id"],)):
                 if c["mode"] == "live" and c["attempt_id"]:

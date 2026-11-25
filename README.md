@@ -86,12 +86,27 @@ pytest -q
 
 ## Going live
 
-1. Fill in `.env` (Sarvam keys and IDs, `FLAGSMITH_ENVIRONMENT_KEY`, `LIVE_TARGETS` with teammates' phones).
-2. Tunnel: `cloudflared tunnel --url http://localhost:8000` and set `PUBLIC_BASE_URL` to the URL it prints.
+1. Fill in `.env`: Sarvam keys and IDs, `FLAGSMITH_ENVIRONMENT_KEY`, and the demo phones:
+   `DEMO_BANK_PHONES` (stands in for the bank) and `DEMO_DONOR_PHONES` (stands in for a registered donor).
+2. Public URL for Sarvam's tool calls: a tunnel (`ngrok` / `cloudflared`) or the GKE deploy; set `PUBLIC_BASE_URL`.
 3. Create the 3 Sarvam agents from `agents/*.md`. Add the HTTP tools in `agents/tools.json` to the intake agent.
-4. In Flagsmith, create the flags listed above, then set `call_mode=live`.
-5. Talk: `python voice/intake_voice.py --name <you> --hospital "City General Hospital"`
-   (`pip install -e ".[voice]"`, which needs PortAudio).
+4. In Flagsmith, create the flags (`scripts/flagsmith_setup.py`), then set `call_mode=live`.
+5. Talk: `.venv/bin/python voice/intake_voice.py --barge-in` (`pip install -e ".[voice]"`, which needs PortAudio).
+
+### Demo-safe calling (the default)
+
+No real bank or donor is ever phoned by default. Who gets dialled is decided by Flagsmith:
+
+| Flag | Default | What it does |
+|---|---|---|
+| `outbound_calls_enabled` | on | Kill switch. Off = nobody is dialled; re-read before every dial. |
+| `call_mode` | `live` | `live` = ring the demo phones; `simulated` = ring no one. |
+| `call_real_banks` | **off** | On = dial the REAL bank numbers from e-RaktKosh. Flagsmith-only: no local override can turn it on. |
+| `call_donors` | on | On = also ring the demo donor line to restock the bank; off = banks only. |
+
+With the defaults, the top bank in the shortlist is phoned on `DEMO_BANK_PHONES` (the agent still names the real
+bank), the donor restock call goes to `DEMO_DONOR_PHONES`, and the other shortlisted banks are listed as leads
+with their real numbers. The dashboard and the voice agent label every demo call "via demo line".
 
 ## API
 

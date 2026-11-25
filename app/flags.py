@@ -29,8 +29,9 @@ DEFAULTS: dict[str, Any] = {
     "wave2_radius_multiplier": 2.5,
     "max_banks_per_wave": 3,          # shortlist size: banks phoned (or listed as leads) per wave
     "call_real_banks": False,         # dial the REAL bank numbers from e-RaktKosh. Off = demo line only.
+    "call_donors": True,              # ring the demo donor line for restock (no real donor registry yet)
 }
-BOOL_FLAGS = {"outbound_calls_enabled", "autopilot_mode", "call_real_banks"}
+BOOL_FLAGS = {"outbound_calls_enabled", "autopilot_mode", "call_real_banks", "call_donors"}
 # Only Flagsmith itself can turn these on: local file and runtime overrides are ignored.
 FLAGSMITH_ONLY = {"call_real_banks"}
 

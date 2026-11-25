@@ -21,6 +21,7 @@ import argparse
 import asyncio
 import os
 import sys
+import time
 from pathlib import Path
 
 import httpx
@@ -78,6 +79,34 @@ def make_half_duplex_audio(tail_s: float = 0.7):
     return HalfDuplexAudio(input_sample_rate=16000)
 
 
+ICONS = {"progress": "⏳", "leads_found": "📋", "calls_started": "📞", "call_started": "📞", "bank_confirmed": "✅",
+         "bank_result": "▫️", "donor_result": "🩸", "target_met": "🎯", "approval_needed": "❓", "wave2_started": "📞",
+         "resolved": "🏁", "unresolved": "⚠️", "paused": "⏸️", "resumed": "▶️", "cancelled": "✖️"}
+
+
+async def watch_status() -> None:
+    """Print the backend's live status (Server-Sent Events) next to the conversation."""
+    import json
+
+    url = os.environ.get("BACKEND_URL", "http://localhost:8000").rstrip("/") + "/api/stream"
+    params = {"token": os.environ.get("DASHBOARD_TOKEN", "")}
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=None) as c:
+                async with c.stream("GET", url, params=params) as r:
+                    async for line in r.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
+                        e = json.loads(line[6:])
+                        if e.get("say"):
+                            t = time.strftime("%H:%M:%S", time.localtime(e["ts"]))
+                            print(f"\033[36m  {ICONS.get(e['type'], '•')} {t}  {e['say']}\033[0m", flush=True)
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            await asyncio.sleep(2)   # backend restarting: reconnect
+
+
 def need(name: str) -> str:
     v = os.environ.get(name, "").strip()
     if not v:
@@ -98,13 +127,15 @@ async def fetch_context(name: str, hospital: str) -> dict:
             return r.json()
     except Exception as e:
         print(f"(backend context unavailable: {e}; using a plain greeting)")
-        return {"agent_variables": {"coordinator_name": name, "default_hospital": hospital, "active_requests": "[]"},
-                "initial_bot_message": f"Hi {name}, RaktSetu here. What blood do you need, how many units, and by when?"}
+        return {"agent_variables": {"coordinator_name": name or "there", "default_hospital": hospital,
+                                    "active_requests": "[]"},
+                "initial_bot_message": "Hi, I'm RaktSetu. I'll help you find blood quickly. Which blood group do "
+                                       "you need, how many units, and where is the patient?"}
 
 
 async def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--name", default=os.environ.get("COORDINATOR_NAME", "there"))
+    ap.add_argument("--name", default=os.environ.get("COORDINATOR_NAME", ""), help="optional: your name")
     ap.add_argument("--hospital", default=os.environ.get("DEFAULT_HOSPITAL", ""), help="optional; if empty the agent asks")
     ap.add_argument("--language", default="English", help="English, Hindi, Kannada, ...")
     ap.add_argument("--text", action="store_true", help="typed chat instead of mic/speaker")
@@ -139,7 +170,7 @@ async def main() -> None:
 
     async def on_transcript(msg: ServerTranscriptMsg) -> None:
         who = "You  " if msg.role == Role.USER else "Agent"
-        print(f"{who}: {msg.content}")
+        print(f"{who}: {msg.content}", flush=True)
 
     async def on_text(msg) -> None:
         print(f"Agent: {getattr(msg, 'text', msg)}")
@@ -162,6 +193,7 @@ async def main() -> None:
         kwargs["transcript_callback"] = on_transcript
 
     agent = AsyncSamvaadAgent(**kwargs)
+    status_task = asyncio.create_task(watch_status())
     await agent.start()
     if not await agent.wait_for_connect(timeout=10):
         await agent.stop()
@@ -182,6 +214,7 @@ async def main() -> None:
     except (KeyboardInterrupt, EOFError):
         pass
     finally:
+        status_task.cancel()
         await agent.stop()
 
 

@@ -65,7 +65,7 @@ async def geocode_place(text: str) -> dict | None:
     words = re.sub(r"[^\w\s,]", " ", text).replace(",", " ").split()
     tries = [t for t in dict.fromkeys([text, " ".join(words[-2:]), words[-1] if words else ""]) if t]
     hit, approx = None, False
-    async with httpx.AsyncClient(timeout=6, headers={"User-Agent": UA}) as client:
+    async with httpx.AsyncClient(timeout=3.5, headers={"User-Agent": UA}) as client:
         for i, q in enumerate(tries):
             hits = await _get(client, {"q": q, "limit": 1, "addressdetails": 1})
             if hits:

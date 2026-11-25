@@ -186,6 +186,7 @@ def create_app(db_path: str | None = None, sim_speed: float | None = None) -> Fa
         snap = await asyncio.to_thread(flags.snapshot)
         snap["sarvam_configured"] = settings.sarvam_ready()
         snap["live_targets"] = sorted(settings.live_targets)   # keys only, never numbers
+        snap["demo_lines"] = {"banks": len(settings.demo_bank_phones), "donors": len(settings.demo_donor_phones)}  # counts only
         return snap
 
     @app.post("/api/flags/override", dependencies=[Depends(dash_auth)])
@@ -203,21 +204,14 @@ def create_app(db_path: str | None = None, sim_speed: float | None = None) -> Fa
     @app.get("/api/intake/context", dependencies=[Depends(dash_auth)])
     async def intake_context(req: Request, coordinator_name: str = "", hospital: str = ""):
         """agent_variables + greeting for the voice intake agent."""
-        db = req.app.state.db
-        active = db.q("SELECT r.id, r.blood_group, r.units, r.status, h.name AS hospital FROM requests r "
-                      "JOIN hospitals h ON h.id=r.hospital_id WHERE r.status IN ('calling','awaiting_wave2') "
-                      "ORDER BY created_at DESC LIMIT 3")
-        name = coordinator_name or "there"
-        greet = f"Hi {name}, RaktSetu here."
-        if hospital:
-            greet += f" I have you at {hospital}."
-        if active:
-            a = active[0]
-            greet += (f" Request {a['id']} for {a['units']} units of {a['blood_group']} is still "
-                      f"{'waiting for your approval' if a['status'] == 'awaiting_wave2' else 'in progress'}.")
-        greet += " What blood do you need, how many units, and by when?"
-        ctx = {"coordinator_name": name, "default_hospital": hospital or "",
-               "active_requests": json.dumps(active), "today": time.strftime("%d %b %Y")}
+        # Anyone can use the assistant (family, friends, hospital staff), so never read out other
+        # people's requests or ids. Keep the greeting short and human.
+        name = coordinator_name.strip()
+        greet = (f"Hi {name}, I'm RaktSetu." if name and name.lower() != "there" else "Hi, I'm RaktSetu.")
+        greet += (" I'll help you find blood quickly. Which blood group do you need, how many units, "
+                  "and where is the patient?")
+        ctx = {"coordinator_name": name or "there", "default_hospital": hospital or "",
+               "active_requests": "[]", "today": time.strftime("%d %b %Y")}
         return {"agent_variables": ctx, "initial_bot_message": greet}
 
     @app.get("/api/stream")

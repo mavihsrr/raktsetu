@@ -20,7 +20,8 @@ API = "https://api.flagsmith.com/api/v1"
 FEATURES = {
     "outbound_calls_enabled": (True, None, "Kill switch: off pauses all calls (re-read before every dial)"),
     "call_real_banks": (False, None, "On = dial the REAL bank numbers from e-RaktKosh. Keep off for the demo."),
-    "call_mode": (True, "live", "live = dial the demo line / LIVE_TARGETS; simulated = dial no one"),
+    "call_mode": (True, "live", "live = dial the demo lines (DEMO_BANK_PHONES / DEMO_DONOR_PHONES); simulated = dial no one"),
+    "call_donors": (True, None, "On = also ring the demo donor line (DEMO_DONOR_PHONES) to restock; off = banks only"),
     "autopilot_mode": (False, None, "On = widen the search to wave 2 without asking"),
     "max_banks_per_wave": (True, "3", "Banks phoned per wave"),
     "max_parallel_calls": (True, "5", "Calls at once"),

@@ -14,6 +14,9 @@ The current single-file dashboard, `static/index.html`, is a working reference f
    - `route: "real"`: dials the bank's real number. Only happens when Flagsmith `call_real_banks` is on; it is **off**.
    - `route: "demo"`: a demo phone stands in for that bank (the agent still names the real bank).
    - `route: "lead"`: not phoned; shown with the bank's real number so a human can call it.
+   - Donors: there is no real donor registry yet. When `DEMO_DONOR_PHONES` is set (default), one
+     "Registered donor" call (`target_id` `DEMO-D1`, `route: "demo"`) goes to the demo donor phone to ask for a
+     restock donation. Flagsmith `call_donors` off = no donor call.
 4. Results stream in live. If short, the backend asks whether to try the next banks (wave 2).
 5. The final **plan** contains confirmed units, banks ranked by ETA, crossmatch steps, backups and unverified leads.
 
@@ -51,7 +54,7 @@ CORS: allowed origins come from backend env `CORS_ORIGINS` (comma-separated; def
 - `banks_in_district`, `banks_in_radius`, `banks_with_stock`, `portal_units_total`.
 - `shortlist[]`: the banks it will phone or list. Each has `id`, `name`, `address`, `phone`, `distance_km`, `lat`, `lng`, `portal_units`, `portal_exact`, `portal_updated_at`, `portal_stale`.
 - `other_banks[]`: the next 10 banks.
-- `donors_eligible[]`, `donors_excluded[]`. Donors are placeholder data today.
+- `donors_eligible[]` (each has `route`; `"demo"` = the demo donor line, `distance_km` null), `donors_excluded[]`.
 - On bad input it returns `ok: false` with a `say` explaining what's missing.
 
 `GET /api/requests/{id}` returns `request` (status: `planned → calling → awaiting_wave2 → resolved | unresolved | cancelled`),
@@ -95,6 +98,15 @@ How to build it, preferred first:
      Forward `transcript_callback` messages (role + text) as JSON text frames for live captions.
    - With browser echo cancellation on, keep the mic open while the agent talks, so barge-in works.
      Drop the half-duplex gating used by the laptop script.
+   - **Echo-cancellation catch:** the browser can only remove the agent's voice from the mic if it knows
+     what is being played. Chrome reliably cancels audio that arrives over WebRTC (an `RTCPeerConnection`
+     remote track). Audio played through the Web Audio API, or an `<audio>` element fed from a WebSocket,
+     may not be cancelled on every OS/browser, and then the agent hears itself again on laptop speakers.
+     Fixes, best first:
+     (a) use Sarvam's web SDK if it plays audio over WebRTC;
+     (b) route the agent's audio through a local loopback `RTCPeerConnection` pair, then into an `<audio>` element;
+     (c) at minimum, test on laptop speakers without headphones in Chrome and Safari.
+     If echo remains, briefly duck/mute the mic while agent audio is playing.
 3. Keep the typed flow (`POST /api/requests` → `start` → `/api/stream`) as the fallback when the mic is unavailable.
 
 ## Run the backend locally
@@ -104,4 +116,4 @@ How to build it, preferred first:
 ```
 
 Real calls only. There are no mocks, and real banks are never dialled unless Flagsmith `call_real_banks` is on.
-Clicking "start" on a request rings the demo phone when Flagsmith `call_mode` is `live`.
+Clicking "start" on a request rings the demo bank and donor phones when Flagsmith `call_mode` is `live`.
