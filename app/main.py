@@ -16,9 +16,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .coordinator import Coordinator
@@ -26,10 +27,13 @@ from .db import DB
 from .dialer import SarvamDialer, webhook_signature
 from .flags import DEFAULTS, flags
 from .medical import InputError
+from .voice_bridge import run_session as run_voice_session
+from .voice_bridge import voice_ready
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("raktsetu")
 STATIC = Path(__file__).resolve().parent.parent / "static"
+DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 
 def create_app(db_path: str | None = None, sim_speed: float | None = None) -> FastAPI:
@@ -143,7 +147,28 @@ def create_app(db_path: str | None = None, sim_speed: float | None = None) -> Fa
     # ---------------------------------------------------------------- dashboard API
     @app.get("/")
     async def index():
+        if (DIST / "index.html").exists():
+            return FileResponse(DIST / "index.html")
         return FileResponse(STATIC / "index.html")
+
+    @app.get("/legacy")
+    async def legacy_index():
+        return FileResponse(STATIC / "index.html")
+
+    @app.get("/pcm-worklet.js")
+    async def pcm_worklet():
+        if not (DIST / "pcm-worklet.js").exists():
+            raise HTTPException(404, "frontend not built")
+        return FileResponse(DIST / "pcm-worklet.js", media_type="text/javascript")
+
+    @app.get("/favicon.svg")
+    async def favicon():
+        if not (DIST / "favicon.svg").exists():
+            raise HTTPException(404, "frontend not built")
+        return FileResponse(DIST / "favicon.svg", media_type="image/svg+xml")
+
+    if (DIST / "assets").is_dir():
+        app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
 
     @app.get("/api/requests", dependencies=[Depends(dash_auth)])
     async def list_requests(req: Request):
@@ -185,6 +210,7 @@ def create_app(db_path: str | None = None, sim_speed: float | None = None) -> Fa
     async def get_flags():
         snap = await asyncio.to_thread(flags.snapshot)
         snap["sarvam_configured"] = settings.sarvam_ready()
+        snap["voice_ready"] = voice_ready()
         snap["live_targets"] = sorted(settings.live_targets)   # keys only, never numbers
         snap["demo_lines"] = {"banks": len(settings.demo_bank_phones), "donors": len(settings.demo_donor_phones)}  # counts only
         return snap
@@ -204,6 +230,16 @@ def create_app(db_path: str | None = None, sim_speed: float | None = None) -> Fa
     @app.get("/api/intake/context", dependencies=[Depends(dash_auth)])
     async def intake_context(req: Request, coordinator_name: str = "", hospital: str = ""):
         """agent_variables + greeting for the voice intake agent."""
+        return build_intake_context(coordinator_name, hospital)
+
+    @app.websocket("/api/voice/ws")
+    async def ws_voice(ws: WebSocket, token: str = ""):
+        if settings.dashboard_token and not hmac.compare_digest(token, settings.dashboard_token):
+            await ws.close(code=4401)
+            return
+        await run_voice_session(ws, build_intake_context)
+
+    def build_intake_context(coordinator_name: str = "", hospital: str = "") -> dict:
         # Anyone can use the assistant (family, friends, hospital staff), so never read out other
         # people's requests or ids. Keep the greeting short and human.
         name = coordinator_name.strip()

@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          "static/index.html"
+        ],
+        "createdAt": "2026-11-25T06:00:20.447Z",
+        "reason": "Claude triage: .dot renders only while a call's status is 'dialing' (index.html:198), tied to live call state"
+      }
+    ]
+  }
+}
