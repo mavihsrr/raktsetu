@@ -152,13 +152,14 @@ export class VoiceSession {
   }
 
   /**
-   * While the agent talks (and for a moment after), send silence instead of the mic so any leftover echo
-   * is never taken for you. A clearly louder, sustained voice still gets through: that is you cutting in.
+   * While the agent talks, send silence instead of the mic so leftover echo is never taken for you.
+   * Your voice (louder than the echo that survives the browser's echo cancellation) for ~60 ms
+   * cuts in: playback stops at once and the mic opens.
    */
   private gated(): boolean {
     if (Date.now() > this.agentSpeakingUntil) { this.loudFrames = 0; return false }
-    this.loudFrames = this.rms(this.micAnalyser) > 0.5 ? this.loudFrames + 1 : 0
-    if (this.loudFrames >= 4) { // ~80 ms of real speech: barge-in
+    this.loudFrames = this.rms(this.micAnalyser) > 0.28 ? this.loudFrames + 1 : 0
+    if (this.loudFrames >= 3) { // ~60 ms of real speech: barge-in
       this.agentSpeakingUntil = 0
       this.stopPlayback()
       return false
@@ -206,7 +207,8 @@ export class VoiceSession {
     const at = Math.max(ctx.currentTime + 0.04, this.playHead)
     node.start(at)
     this.playHead = at + buffer.duration
-    this.agentSpeakingUntil = Date.now() + (this.playHead - ctx.currentTime) * 1000 + 450
+    // short tail only: covers output latency, so your reply right after the agent is not cut off
+    this.agentSpeakingUntil = Date.now() + (this.playHead - ctx.currentTime) * 1000 + 120
     this.sources.add(node)
     if (this.state !== 'speaking') this.set('speaking')
     node.onended = () => {

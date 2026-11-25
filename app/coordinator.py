@@ -278,41 +278,30 @@ class Coordinator:
         with_stock = [b for b in ring if b["portal_compatible"] > 0 and not b["portal_stale"]]
         portal_total = sum(b["portal_compatible"] for b in ring)
         label = COMPONENTS[comp]
-        say = (f"Request for {n} unit{'s' if n != 1 else ''} of {spoken_group(group)} {label} near {location}"
-               + (f", {district_label} district" if district_label.lower() not in location.lower() else "")
-               + (f", needed within {hours:g} hours" if hours else "") + ". ")
-        if assumed:
-            say += "I've assumed packed red cells; tell me if you need whole blood or platelets. "
-        if place["approx"]:
-            say += f"I couldn't pin the exact place, so I'm measuring from the centre of {place['city'] or district_label}. "
+        # Spoken text stays short: the screen lists every bank, distance and stock.
+        route = self._routing(snap)
+        k = len(shortlist)
         if ring:
-            scope = (f"within {r1:g} km" if len(near) >= len(shortlist) else f"in {district_label} district")
+            scope = (f"within {r1:g} km" if len(near) >= len(shortlist) else f"in {district_label}")
             pool = near if scope.startswith("within") else ring
-            say += (f"The national portal, e-RaktKosh, lists {len(pool)} blood bank{'s' if len(pool) != 1 else ''} {scope}; "
-                    f"{sum(1 for b in pool if b['portal_compatible'] > 0)} show compatible stock, "
-                    f"{sum(b['portal_compatible'] for b in pool)} units in all. ")
+            say = (f"Found {len(pool)} blood bank{'s' if len(pool) != 1 else ''} {scope} on e-RaktKosh. ")
             if with_stock:
                 b0 = with_stock[0]
                 d = b0["distance_km"]
-                say += (f"Nearest with recently updated stock is {b0['bank']['name']}"
+                say += (f"The nearest with fresh stock is {b0['bank']['name']}"
                         + ("" if d is None else ", right there" if d < 0.5 else f", {d:g} km away")
-                        + f", showing {b0['portal_compatible']}. ")
-            route = self._routing(snap)
-            k = len(shortlist)
-            say += f"Portal stock can be out of date, so I'll phone the top {k} to confirm. "
-            if route == "demo":
-                say += "Real bank calls are switched off, so the confirmation call goes to our demo line. "
-            elif route == "none":
-                say += "Live calling is off right now, so I'll list them as leads without phoning. "
+                        + f", showing {b0['portal_compatible']} units. ")
+            if assumed:
+                say += f"I've assumed {label}; tell me if you need something else. "
+            nd = min(k, len(settings.demo_bank_phones))
+            say += ("Portal stock can be out of date. "
+                    + (f"Shall I call the top {k} to confirm?" if route == "real" else
+                       ("Shall I call the nearest one to confirm? " if nd == 1 else f"Shall I call the top {nd} to confirm? ")
+                       + "The call goes to our demo line." if route == "demo" else
+                       "Live calling is off, so I'll list them as leads. Shall I?"))
         else:
-            say += f"e-RaktKosh lists no blood banks with this component in {district_label} district right now. "
-        if donors and donors[0].get("route") == "demo":
-            say += ("I'll also ring a registered donor on our demo donor line to help restock the bank; "
-                    "donor blood is screened first and doesn't count for this patient. ")
-        elif donors:
-            say += (f"I also found {len(donors)} eligible donor{'s' if len(donors) != 1 else ''} who opted in to recall; "
-                    "I'd ask them to restock, but donor blood is screened first and doesn't count for this patient. ")
-        say += "Shall I start calling now?"
+            say = (f"e-RaktKosh lists no blood banks with {label} in {district_label} right now. "
+                   "Shall I try a nearby town instead?")
         payload = {
             "location": location, "located_as": place["label"], "approx_location": place["approx"],
             "state": place["state"], "district": district_label, "lat": hospital["lat"], "lng": hospital["lng"],
@@ -468,22 +457,15 @@ class Coordinator:
 
     @staticmethod
     def _calling_say(banks: list[dict], dialled: int, demo: int, donors: int) -> str:
-        def where(b: dict) -> str:
-            d = b["distance_km"]
-            return b["bank"]["name"] + ("" if d is None else f", {d:g} km")
-        leads = banks[dialled:]
         if dialled == 0 and not donors:
-            return ("I haven't phoned anyone: live calling is off. These banks are leads with their numbers in the plan: "
-                    + "; ".join(where(b) for b in banks) + ".")
+            return "Live calling is off, so I haven't phoned anyone. The banks and their numbers are on screen."
         bits = []
         if dialled:
-            bits.append("; ".join(where(b) for b in banks[:dialled]) + (" through the demo line" if demo else ""))
+            names = [b["bank"]["name"] for b in banks[:dialled]]
+            bits.append(" and ".join(names) + (" on our demo line" if demo else ""))
         if donors:
-            bits.append(("a donor" if donors == 1 else f"{donors} donors") + " to help restock")
-        say = "Calling " + ", and ".join(bits) + " now. I'll update you as they answer."
-        if leads:
-            say += (f" Also worth phoning yourself, not called by me: " + "; ".join(where(b) for b in leads) + ".")
-        return say
+            bits.append("a donor to help restock")
+        return "Calling " + ", plus ".join(bits) + " now. I'll update you as they answer."
 
     def _queue(self, request_id: str, ttype: str, target: dict, wave: int, km: float, portal: int | None,
                *, route: str | None = None, dial_to: str | None = None, phone: str | None = None,

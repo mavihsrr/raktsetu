@@ -155,8 +155,7 @@ def plan_say(plan: dict) -> str:
         msg = (f"No bank has confirmed {plan['group_spoken']} {plan['component_label']} yet. "
                "Escalate to the regional blood transfusion officer.")
         if plan["leads"]:
-            msg += (" Unverified portal leads you can phone directly: "
-                    + ", ".join(l["bank_name"] for l in plan["leads"][:3]) + "; numbers are in the plan.")
+            msg += " Other banks' numbers are on screen to phone directly."
         return msg
     first = plan["allocation"][0]
     head = (f"{plan['confirmed']} of {plan['needed']} units confirmed." if plan["short_by"] == 0
@@ -168,12 +167,7 @@ def plan_say(plan: dict) -> str:
             f"{a['bank_name']} {a['units']}" + ("" if a["exact_match"] else f" ({spoken_group(a['group'])}, compatible)")
             for a in plan["allocation"][1:]) + ".")
     if plan["short_by"] and plan["leads"]:
-        parts.append("Unverified portal leads you can phone directly: "
-                     + ", ".join(l["bank_name"] for l in plan["leads"][:3]) + "; numbers are in the plan.")
+        parts.append("Other banks' numbers are on screen to phone directly.")
     if plan["late_vs_deadline"]:
         parts.append("Warning: " + ", ".join(plan["late_vs_deadline"]) + " may not arrive before the deadline.")
-    willing = [d for d in plan["donors_restock"] if d["willing"] == "yes"]
-    if willing:
-        parts.append(f"{len(willing)} donor{'s' if len(willing) != 1 else ''} agreed to donate for restock; "
-                     "that is not counted for this patient.")
     return " ".join(parts)

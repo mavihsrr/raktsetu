@@ -95,7 +95,7 @@ export function LiveStatus({ list, selected, onSelect, state, onChanged, loadErr
             />
           </div>
         ) : state && !searching ? (
-          <RequestView st={state} onChanged={onChanged} route={callRoute(flags)} />
+          <RequestView st={state} onChanged={onChanged} route={callRoute(flags)} demoBanks={flags?.demo_lines?.banks ?? 1} />
         ) : searching ? null : (
           <p className="empty">Loading…</p>
         )}
@@ -104,7 +104,7 @@ export function LiveStatus({ list, selected, onSelect, state, onChanged, loadErr
   )
 }
 
-function RequestView({ st, onChanged, route }: { st: RequestState; onChanged: () => void; route: CallRoute }) {
+function RequestView({ st, onChanged, route, demoBanks }: { st: RequestState; onChanged: () => void; route: CallRoute; demoBanks: number }) {
   const r = st.request
   const p = st.plan
   const [busy, setBusy] = useState(false)
@@ -139,9 +139,11 @@ function RequestView({ st, onChanged, route }: { st: RequestState; onChanged: ()
   // units "confirmed" by the demo phone are not the bank's word: never present them as such
   const demoConfirmed = p.allocation.some((a) => a.route === 'demo')
   const nShort = leadsPayload?.shortlist?.length ?? 0
+  // one demo phone stands in for one bank; the rest of the shortlist are leads
+  const nDemo = Math.min(nShort, demoBanks)
   const startQ =
     route === 'real' ? `Phone the ${nShort} shortlisted banks now?`
-    : route === 'demo' ? `Ring the demo line for the ${nShort} shortlisted banks?`
+    : route === 'demo' ? (nDemo === 1 ? 'Ring the demo line for the nearest bank?' : `Ring the demo line for the top ${nDemo} banks?`)
     : `List the ${nShort} shortlisted banks as leads? No one will be phoned.`
   const startBtn = route === 'real' ? 'Yes, call the banks' : route === 'demo' ? 'Yes, ring the demo line' : 'List the leads'
   const donorDemo = donors.some((c) => c.route === 'demo')
@@ -182,7 +184,7 @@ function RequestView({ st, onChanged, route }: { st: RequestState; onChanged: ()
             <p className="gate-sub">
               {leadsPayload.banks_in_district} banks in {leadsPayload.district} district
               {leadsPayload.banks_with_stock != null ? `, ${leadsPayload.banks_with_stock} listing compatible stock` : ''}.
-              {route === 'demo' ? ' Real bank calls are off; a demo phone answers for each bank.' : route === 'real' ? ' Portal stock is checked by phone.' : ''}
+              {route === 'demo' ? ' Real bank calls are off; our demo phone answers for the bank, and the others are listed as leads.' : route === 'real' ? ' Portal stock is checked by phone.' : ''}
               {leadsPayload.approx_location ? ' Distances are from the city centre.' : ''}
             </p>
           )}
