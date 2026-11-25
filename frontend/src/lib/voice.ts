@@ -92,7 +92,17 @@ export class VoiceSession {
     worklet.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
       const ws = this.ws
       if (ws?.readyState !== WebSocket.OPEN) return
-      if (this.muted || this.gated()) { this.resetBridge(); ws.send(silence); return }
+      if (this.muted) { this.resetBridge(); ws.send(silence); return }
+      if (this.gated()) {
+        // keep the last ~120 ms so the first word of a barge-in is not lost
+        this.ring.push(e.data)
+        if (this.ring.length > 6) this.ring.shift()
+        this.resetBridge()
+        ws.send(silence)
+        return
+      }
+      for (const f of this.ring) ws.send(f)
+      this.ring = []
       for (const f of this.bridge(e.data)) ws.send(f)
     }
 
@@ -163,7 +173,9 @@ export class VoiceSession {
     this.loudFrames = this.rms(this.micAnalyser) > 0.18 ? this.loudFrames + 1 : 0
     if (this.loudFrames >= 4) { // ~80 ms of normal speech: barge-in
       this.agentSpeakingUntil = 0
+      this.dropAgentUntil = Date.now() + 8000   // the server keeps streaming the rest of the sentence: ignore it
       this.stopPlayback()
+      this.set('user')
       return false
     }
     return true
@@ -181,6 +193,9 @@ export class VoiceSession {
   private gap = 0
   private held: ArrayBuffer[] = []
   private floorDb = -60
+  private ring: ArrayBuffer[] = []
+  private dropAgentUntil = 0   // after a barge-in, ignore the agent's stale audio until it answers you
+  private settle: ReturnType<typeof setTimeout> | null = null
 
   private resetBridge() {
     this.talking = false
@@ -190,8 +205,8 @@ export class VoiceSession {
   }
 
   private bridge(frame: ArrayBuffer): ArrayBuffer[] {
-    const KEEP = 6      // 120 ms of each pause passes through
-    const END = 40      // 800 ms of silence = you have finished
+    const KEEP = 4      // 80 ms of each pause passes through
+    const END = 22      // 440 ms of silence = you have finished
     const pcm = new Int16Array(frame)
     let sum = 0
     for (let i = 0; i < pcm.length; i++) sum += pcm[i] * pcm[i]
@@ -229,6 +244,7 @@ export class VoiceSession {
       case 'transcript': {
         const role = m.type === 'greeting' ? 'agent' : (m.role as 'user' | 'agent')
         const text = String(m.text ?? '').trim()
+        if (m.type === 'transcript' && role === 'user') this.dropAgentUntil = 0   // you were heard: the next audio answers you
         if (text) this.h.onLine({ id: `v${++lineSeq}`, role, text, ts: Date.now() / 1000 })
         break
       }
@@ -238,6 +254,7 @@ export class VoiceSession {
         break
       case 'interrupt':
         this.stopPlayback()
+        this.dropAgentUntil = 0   // the server dropped its queue: what comes next is the real reply
         break
     }
   }
@@ -245,6 +262,7 @@ export class VoiceSession {
   private onAudio(data: ArrayBuffer) {
     const ctx = this.ctx
     if (!ctx || !this.outGain || data.byteLength < 6) return
+    if (Date.now() < this.dropAgentUntil) return
     const rate = new DataView(data).getUint32(0, true)
     const pcm = new Int16Array(data, 4, (data.byteLength - 4) >> 1)
     const buffer = ctx.createBuffer(1, pcm.length, rate)
@@ -257,10 +275,7 @@ export class VoiceSession {
     node.start(at)
     this.playHead = at + buffer.duration
     this.sources.add(node)
-    node.onended = () => {
-      this.sources.delete(node)
-      if (this.sources.size === 0 && this.state === 'speaking') this.set('listening')
-    }
+    node.onended = () => { this.sources.delete(node) }
     // Only real speech counts as the agent talking. Quiet filler (background ambience measured at
     // -37..-42 dBFS, speech at about -13) must never close your mic, or the agent hears you in pieces.
     let sq = 0
@@ -269,6 +284,11 @@ export class VoiceSession {
     // short tail only: covers output latency, so your reply right after the agent is not cut off
     this.agentSpeakingUntil = Date.now() + (this.playHead - ctx.currentTime) * 1000 + 120
     if (this.state !== 'speaking') this.set('speaking')
+    // back to listening only once the agent has really been quiet for a moment (not between chunks)
+    if (this.settle) clearTimeout(this.settle)
+    this.settle = setTimeout(() => {
+      if (this.state === 'speaking' && Date.now() >= this.agentSpeakingUntil) this.set('listening')
+    }, Math.max(0, this.agentSpeakingUntil - Date.now()) + 350)
   }
 
   private stopPlayback() {
@@ -326,6 +346,11 @@ export class VoiceSession {
 
   private teardown() {
     this.stopPlayback()
+    if (this.settle) clearTimeout(this.settle)
+    this.settle = null
+    this.ring = []
+    this.dropAgentUntil = 0
+    this.resetBridge()
     this.mic?.getTracks().forEach((t) => t.stop())
     this.mic = null
     this.pcs.forEach((p) => p.close())
