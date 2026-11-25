@@ -28,7 +28,7 @@ interface Props {
 export function LiveStatus({ list, selected, onSelect, state, onChanged, loadError, open, onToggle, flags, progress }: Props) {
   const [creating, setCreating] = useState(false)
   const searching = progress.length > 0
-  const showForm = !searching && (creating || (!state && list.length === 0))
+  const showForm = !searching && (creating || !state)
   const portalBanks = [...progress].reverse().map((e) => payloadOf(e).banks).find(Boolean)
 
   if (!open) {
@@ -58,7 +58,8 @@ export function LiveStatus({ list, selected, onSelect, state, onChanged, loadErr
         <h2>Live status</h2>
         <div className="head-actions">
           {list.length > 0 && (
-            <select className="req-select" value={selected ?? ''} onChange={(e) => { setCreating(false); onSelect(e.target.value) }} aria-label="Request">
+            <select className="req-select" value={selected ?? ''} onChange={(e) => { setCreating(false); onSelect(e.target.value) }} aria-label="Past requests">
+              {!selected && <option value="" disabled>Past requests…</option>}
               {list.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.units}× {r.blood_group} · {r.hospital_name}
@@ -86,8 +87,8 @@ export function LiveStatus({ list, selected, onSelect, state, onChanged, loadErr
         )}
         {showForm ? (
           <div className="block">
-            <h3 className="block-title">Type a request</h3>
-            <p className="muted small">Or just say it to the agent. Banks and live stock come from e-RaktKosh.</p>
+            <h3 className="block-title">New request</h3>
+            <p className="muted small">Say it to the agent, or type it here. Banks and live stock come from e-RaktKosh. Past requests are in the list above.</p>
             <RequestForm
               onCreated={(id) => { setCreating(false); onSelect(id); onChanged() }}
               onCancel={list.length ? () => setCreating(false) : undefined}

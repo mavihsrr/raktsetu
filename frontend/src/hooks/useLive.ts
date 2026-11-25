@@ -38,7 +38,7 @@ export function useLive(follow: () => boolean = () => false) {
       const rows = await api.requests()
       setList(rows)
       setLoadError(null)
-      if (!selectedRef.current && rows.length) setSelected(rows[0].id)
+      // no auto-select: every visit starts clean; a request opens when it is created here or picked from the list
     } catch {
       setLoadError('Cannot reach the RaktSetu backend.')
     }
