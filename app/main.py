@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from .config import settings
@@ -49,6 +50,17 @@ def create_app(db_path: str | None = None, sim_speed: float | None = None) -> Fa
         await coord.shutdown()
 
     app = FastAPI(title="RaktSetu", version="0.1.0", lifespan=lifespan)
+
+    # CORS for a separately hosted frontend. Auth is header/query-token based (no cookies),
+    # so credentials are only enabled for an explicit allow-list, never with "*".
+    allow_any = "*" in settings.cors_origins
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"] if allow_any else settings.cors_origins,
+        allow_credentials=not allow_any,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "X-Dashboard-Token"],
+    )
 
     # ---------------------------------------------------------------- auth helpers
     def tool_auth(x_tool_secret: str = Header(default="")) -> None:

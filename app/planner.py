@@ -87,7 +87,8 @@ def build_plan(request: dict, hospital: dict, calls: list[dict], now: float) -> 
         take = min(n, max(remaining, 0))
         if take < n:
             backups.append({"bank_name": c["target_name"], "units": n - take, "group": g,
-                            "exact_match": g == group, "distance_km": km, "eta_min": eta_minutes(km)})
+                            "exact_match": g == group, "distance_km": km, "eta_min": eta_minutes(km),
+                            "lat": c.get("lat"), "lng": c.get("lng")})
         if take <= 0:
             continue
         remaining -= take
@@ -95,6 +96,7 @@ def build_plan(request: dict, hospital: dict, calls: list[dict], now: float) -> 
             "bank_id": c["target_id"], "bank_name": c["target_name"], "units": take, "group": g,
             "exact_match": g == group, "distance_km": km, "eta_min": eta_minutes(km),
             "hold_hours": c["hold_hours"], "mode": c["mode"], "route": c.get("route"),
+            "lat": c.get("lat"), "lng": c.get("lng"),
         })
     allocation.sort(key=lambda a: (a["eta_min"] is None, a["eta_min"] or 0))
     got = need - max(remaining, 0)
@@ -112,7 +114,7 @@ def build_plan(request: dict, hospital: dict, calls: list[dict], now: float) -> 
                   and c["portal_units"] != c["confirmed_units"]]
 
     leads = [{"bank_name": c["target_name"], "portal": c["portal_units"], "distance_km": c["distance_km"],
-              "phone": c.get("phone"), "why": c["notes"]}
+              "phone": c.get("phone"), "why": c["notes"], "lat": c.get("lat"), "lng": c.get("lng")}
              for c in calls if c["target_type"] == "bank" and c.get("route") == "lead"]
 
     steps = []

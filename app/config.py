@@ -33,6 +33,14 @@ def _parse_live_targets(raw: str) -> dict[str, str]:
     return out
 
 
+_DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
+
+
+def _parse_origins(raw: str) -> list[str]:
+    """CORS_ORIGINS="https://a.example,https://b.example" -> list. "*" means any origin."""
+    return [o.strip().rstrip("/") for o in raw.split(",") if o.strip()]
+
+
 @dataclass
 class Settings:
     db_path: str = field(default_factory=lambda: _env("DB_PATH", str(Path(__file__).resolve().parent.parent / "data" / "raktsetu.db")))
@@ -40,6 +48,8 @@ class Settings:
     dashboard_token: str = field(default_factory=lambda: _env("DASHBOARD_TOKEN"))
     public_base_url: str = field(default_factory=lambda: _env("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/"))
     webhook_secret: str = field(default_factory=lambda: _env("WEBHOOK_SECRET", "dev-webhook-secret"))
+    # Browser origins allowed to call the API cross-origin (separate frontend). "*" = any origin.
+    cors_origins: list[str] = field(default_factory=lambda: _parse_origins(_env("CORS_ORIGINS") or _DEFAULT_CORS_ORIGINS))
 
     # Simulation: seconds multiplier for simulated call durations (0 = instant, tests).
     sim_speed: float = field(default_factory=lambda: float(_env("SIM_SPEED", "1.0") or 1.0))

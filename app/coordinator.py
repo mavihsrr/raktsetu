@@ -110,9 +110,24 @@ class Coordinator:
                           "WHERE request_id=? AND target_type='bank' AND status='completed'", (request_id,))
         return int(row["n"])
 
+    def _with_coords(self, calls: list[dict]) -> list[dict]:
+        """Attach each target's lat/lng (None when unknown): one query per target table, not per call."""
+        for ttype, table in (("bank", "banks"), ("donor", "donors")):
+            ids = sorted({c["target_id"] for c in calls if c["target_type"] == ttype})
+            if not ids:
+                continue
+            qs = ",".join("?" for _ in ids)
+            where = {row["id"]: row for row in self.db.q(f"SELECT id, lat, lng FROM {table} WHERE id IN ({qs})",
+                                                        tuple(ids))}
+            for c in calls:
+                if c["target_type"] == ttype:
+                    row = where.get(c["target_id"]) or {}
+                    c["lat"], c["lng"] = row.get("lat"), row.get("lng")
+        return calls
+
     def state(self, request_id: str) -> dict:
         r = self.request(request_id)
-        calls = self.calls(request_id)
+        calls = self._with_coords(self.calls(request_id))
         hospital = self.db.one("SELECT * FROM hospitals WHERE id=?", (r["hospital_id"],))
         plan = build_plan(r, hospital, calls, time.time())
         counts: dict[str, int] = {}
@@ -247,7 +262,7 @@ class Coordinator:
     def _bank_view(b: dict) -> dict:
         bk = b["bank"]
         return {"id": bk["id"], "name": bk["name"], "address": bk["area"], "phone": bk["phone"],
-                "distance_km": b["distance_km"], "portal_units": b["portal_compatible"],
+                "lat": bk.get("lat"), "lng": bk.get("lng"), "distance_km": b["distance_km"], "portal_units": b["portal_compatible"],
                 "portal_exact": b["portal_exact"], "portal_updated_at": bk.get("portal_updated_at"),
                 "portal_stale": b.get("portal_stale", False)}
 
