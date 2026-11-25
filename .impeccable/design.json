@@ -1,0 +1,574 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-25T07:12:26+00:00",
+  "title": "Design System: RaktSetu",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "#0b0b0f",
+        "tonalRamp": [
+          "#020203",
+          "#040406",
+          "#070709",
+          "#09090c",
+          "#303033",
+          "#6d6d6f",
+          "#aaaaab",
+          "#dadadb"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "canonical": "#111117",
+        "tonalRamp": [
+          "#030305",
+          "#070709",
+          "#0a0a0e",
+          "#0e0e12",
+          "#35353a",
+          "#707074",
+          "#acacae",
+          "#dbdbdc"
+        ]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised",
+        "canonical": "#17171f",
+        "tonalRamp": [
+          "#050506",
+          "#09090c",
+          "#0e0e13",
+          "#121219",
+          "#3a3a41",
+          "#747479",
+          "#aeaeb1",
+          "#dcdcdd"
+        ]
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Hover",
+        "canonical": "#1d1d27",
+        "tonalRamp": [
+          "#060608",
+          "#0c0c10",
+          "#111117",
+          "#17171f",
+          "#3f3f47",
+          "#77777d",
+          "#b0b0b3",
+          "#dddddf"
+        ]
+      },
+      "seam": {
+        "role": "neutral",
+        "displayName": "Seam",
+        "canonical": "#23232e",
+        "tonalRamp": [
+          "#070709",
+          "#0e0e12",
+          "#15151c",
+          "#1c1c25",
+          "#44444d",
+          "#7b7b82",
+          "#b2b2b6",
+          "#dedee0"
+        ]
+      },
+      "seam-strong": {
+        "role": "neutral",
+        "displayName": "Seam Strong",
+        "canonical": "#2f2f3d",
+        "tonalRamp": [
+          "#09090c",
+          "#131318",
+          "#1c1c25",
+          "#262631",
+          "#4e4e5a",
+          "#82828b",
+          "#b6b6bb",
+          "#e0e0e2"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Text",
+        "canonical": "#f2f2f5",
+        "tonalRamp": [
+          "#303031",
+          "#616162",
+          "#919193",
+          "#c2c2c4",
+          "#f4f4f6",
+          "#f7f7f9",
+          "#fafafc",
+          "#fdfdfe"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "canonical": "#a3a6b8",
+        "tonalRamp": [
+          "#212125",
+          "#41424a",
+          "#62646e",
+          "#828593",
+          "#b1b3c3",
+          "#c8cad4",
+          "#dfe0e6",
+          "#f1f2f4"
+        ]
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Faint",
+        "canonical": "#8a8da0",
+        "tonalRamp": [
+          "#1c1c20",
+          "#373840",
+          "#535560",
+          "#6e7180",
+          "#9c9eae",
+          "#b9bbc6",
+          "#d6d7de",
+          "#edeef1"
+        ]
+      },
+      "orb-highlight": {
+        "role": "primary",
+        "displayName": "Orb Highlight",
+        "canonical": "#b9c8ff",
+        "tonalRamp": [
+          "#252833",
+          "#4a5066",
+          "#6f7899",
+          "#94a0cc",
+          "#c4d0ff",
+          "#d5deff",
+          "#e6ecff",
+          "#f4f7ff"
+        ]
+      },
+      "orb-periwinkle": {
+        "role": "primary",
+        "displayName": "Orb Periwinkle",
+        "canonical": "#7c9cff",
+        "tonalRamp": [
+          "#191f33",
+          "#323e66",
+          "#4a5e99",
+          "#637dcc",
+          "#90abff",
+          "#b0c4ff",
+          "#d1dcff",
+          "#ebf0ff"
+        ]
+      },
+      "orb-indigo": {
+        "role": "primary",
+        "displayName": "Orb Indigo",
+        "canonical": "#3b4bd8",
+        "tonalRamp": [
+          "#0c0f2b",
+          "#181e56",
+          "#232d82",
+          "#2f3cad",
+          "#5866de",
+          "#8993e8",
+          "#bac0f1",
+          "#e2e4f9"
+        ]
+      },
+      "confirmed-green": {
+        "role": "secondary",
+        "displayName": "Confirmed Green",
+        "canonical": "#4ade80",
+        "tonalRamp": [
+          "#0f2c1a",
+          "#1e5933",
+          "#2c854d",
+          "#3bb266",
+          "#65e393",
+          "#92ebb3",
+          "#c0f3d3",
+          "#e4faec"
+        ],
+        "wash": "rgba(74, 222, 128, 0.12)"
+      },
+      "dialing-blue": {
+        "role": "secondary",
+        "displayName": "Dialing Blue",
+        "canonical": "#7cb4ff",
+        "tonalRamp": [
+          "#192433",
+          "#324866",
+          "#4a6c99",
+          "#6390cc",
+          "#90bfff",
+          "#b0d2ff",
+          "#d1e5ff",
+          "#ebf4ff"
+        ],
+        "wash": "rgba(124, 180, 255, 0.12)"
+      },
+      "approval-amber": {
+        "role": "secondary",
+        "displayName": "Approval Amber",
+        "canonical": "#f5b544",
+        "tonalRamp": [
+          "#31240e",
+          "#62481b",
+          "#936d29",
+          "#c49136",
+          "#f6c060",
+          "#f9d38f",
+          "#fce5be",
+          "#fef4e3"
+        ],
+        "wash": "rgba(245, 181, 68, 0.13)"
+      },
+      "failure-red": {
+        "role": "secondary",
+        "displayName": "Failure Red",
+        "canonical": "#ff6b6b",
+        "tonalRamp": [
+          "#331515",
+          "#662b2b",
+          "#994040",
+          "#cc5656",
+          "#ff8181",
+          "#ffa6a6",
+          "#ffcbcb",
+          "#ffe9e9"
+        ],
+        "wash": "rgba(255, 107, 107, 0.13)"
+      },
+      "demo-violet": {
+        "role": "secondary",
+        "displayName": "Demo Violet",
+        "canonical": "#b79cff",
+        "tonalRamp": [
+          "#251f33",
+          "#493e66",
+          "#6e5e99",
+          "#927dcc",
+          "#c2abff",
+          "#d4c4ff",
+          "#e6dcff",
+          "#f4f0ff"
+        ],
+        "wash": "rgba(183, 156, 255, 0.14)"
+      },
+      "live-red": {
+        "role": "secondary",
+        "displayName": "Live Red",
+        "canonical": "#c2334a",
+        "tonalRamp": [
+          "#270a0f",
+          "#4e141e",
+          "#741f2c",
+          "#9b293b",
+          "#cb5265",
+          "#da8592",
+          "#eab8c0",
+          "#f6e0e4"
+        ]
+      },
+      "end-call-red": {
+        "role": "secondary",
+        "displayName": "End-call Red",
+        "canonical": "#d93a4a",
+        "tonalRamp": [
+          "#2b0c0f",
+          "#57171e",
+          "#82232c",
+          "#ae2e3b",
+          "#df5865",
+          "#e88992",
+          "#f2bac0",
+          "#f9e1e4"
+        ]
+      }
+    },
+    "orbStatePalette": {
+      "stops": [
+        "highlight",
+        "body",
+        "depth"
+      ],
+      "states": {
+        "idle": [
+          "#c9d3ff",
+          "#7c9cff",
+          "#2e3aa8"
+        ],
+        "connecting": [
+          "#aab5e6",
+          "#5a6bc4",
+          "#232a6e"
+        ],
+        "listening": [
+          "#c9d3ff",
+          "#7c9cff",
+          "#3b4bd8"
+        ],
+        "user": [
+          "#e8fbff",
+          "#8fd8ff",
+          "#3a7bd8"
+        ],
+        "thinking": [
+          "#d9cfff",
+          "#9a86ff",
+          "#4433b8"
+        ],
+        "speaking": [
+          "#dfe6ff",
+          "#7c9cff",
+          "#3b4bd8"
+        ],
+        "error": [
+          "#ffd2d2",
+          "#ff7a7a",
+          "#8a2433"
+        ]
+      },
+      "source": "frontend/src/components/Orb.tsx"
+    },
+    "typographyMeta": {
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Confirmed-units count; the one large number on screen."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Stage state label; request title one step smaller (19px/650)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Column headings (muted) and block titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Base UI copy, stage hint, gate text."
+      },
+      "transcript": {
+        "displayName": "Transcript",
+        "purpose": "Spoken lines in the conversation column."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Chips, pills, field labels, meta, timestamps."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Phone numbers and identifiers."
+      }
+    },
+    "shadows": [
+      {
+        "name": "focus-halo",
+        "value": "0 0 0 3px rgba(124, 156, 255, 0.18)",
+        "purpose": "Focused input or select, paired with a periwinkle border. Focus signal, not elevation."
+      }
+    ],
+    "focus": [
+      {
+        "name": "focus-outline",
+        "value": "2px solid #7c9cff, offset 2px, radius 4px",
+        "purpose": "Global :focus-visible ring."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Default easing for every transition and keyframe."
+      },
+      {
+        "name": "state-change",
+        "value": "150ms",
+        "purpose": "Button, round-control background/border transitions."
+      },
+      {
+        "name": "progress-fill",
+        "value": "400ms",
+        "purpose": "Units segments and call-row background."
+      },
+      {
+        "name": "chevron",
+        "value": "200ms",
+        "purpose": "Disclosure chevron rotation."
+      },
+      {
+        "name": "confirm-flash",
+        "value": "1.6s green wash (0.22 alpha) fading to transparent",
+        "purpose": "A call newly phone-confirmed."
+      },
+      {
+        "name": "dialing-ring",
+        "value": "1.4s infinite, scale 0.5 to 1.3, opacity 1 to 0",
+        "purpose": "Ring around the blue dot of a dialing call."
+      },
+      {
+        "name": "press",
+        "value": "scale(0.96)",
+        "purpose": "Round voice controls on :active."
+      },
+      {
+        "name": "orb-ease",
+        "value": "exponential, tau 0.18s",
+        "purpose": "Orb palette and scale morph between voice states; frozen under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "stack",
+        "value": "1100px",
+        "purpose": "Below: single column, stage then live status then conversation; page scrolls."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Default compact action.",
+      "html": "<button class=\"ds-btn\">Approve calls</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:6px;border:1px solid var(--seam-strong,#2f2f3d);background:var(--raised,#17171f);color:var(--text,#f2f2f5);font:550 13px ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background .15s cubic-bezier(0.16,1,0.3,1)}.ds-btn:hover{background:var(--hover,#1d1d27)}.ds-btn:focus-visible{outline:2px solid #7c9cff;outline-offset:2px}"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Inverted light button for the one committing action in a group.",
+      "html": "<button class=\"ds-btn-primary\">Call these banks</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;height:34px;padding:0 14px;border-radius:6px;border:1px solid #f2f2f5;background:#f2f2f5;color:#0b0b0f;font:550 13px ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background .15s cubic-bezier(0.16,1,0.3,1)}.ds-btn-primary:hover{background:#fff}.ds-btn-primary:focus-visible{outline:2px solid #7c9cff;outline-offset:2px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Low-emphasis action in column heads.",
+      "html": "<button class=\"ds-btn-ghost\">New request</button>",
+      "css": ".ds-btn-ghost{display:inline-flex;align-items:center;height:34px;padding:0 14px;border-radius:6px;border:1px solid transparent;background:transparent;color:#a3a6b8;font:550 13px ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background .15s cubic-bezier(0.16,1,0.3,1)}.ds-btn-ghost:hover{background:#1d1d27;color:#f2f2f5}.ds-btn-ghost:focus-visible{outline:2px solid #7c9cff;outline-offset:2px}"
+    },
+    {
+      "name": "Round Voice Control",
+      "kind": "button",
+      "refersTo": "round-control",
+      "description": "56px circle for mic and end-call beside the orb.",
+      "html": "<div style=\"display:flex;gap:18px\"><button class=\"ds-round\" aria-label=\"Mute\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"9\" y=\"3\" width=\"6\" height=\"11\" rx=\"3\"/><path d=\"M5 11a7 7 0 0 0 14 0M12 18v3\"/></svg></button><button class=\"ds-round ds-round-end\" aria-label=\"End\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M6 6l12 12M18 6L6 18\"/></svg></button></div>",
+      "css": ".ds-round{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;cursor:pointer;background:#17171f;border:1px solid #2f2f3d;color:#f2f2f5;transition:background .15s cubic-bezier(0.16,1,0.3,1),transform .15s cubic-bezier(0.16,1,0.3,1)}.ds-round:hover{background:#1d1d27}.ds-round:active{transform:scale(.96)}.ds-round:focus-visible{outline:2px solid #7c9cff;outline-offset:2px}.ds-round-end{background:#d93a4a;border-color:#d93a4a;color:#fff}.ds-round-end:hover{background:#e5485a}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Form field with periwinkle focus halo.",
+      "html": "<label class=\"ds-label\">Hospital<input class=\"ds-input\" placeholder=\"e.g. AIIMS Delhi\"></label>",
+      "css": ".ds-label{display:grid;gap:5px;font:12px ui-sans-serif,system-ui,sans-serif;color:#a3a6b8}.ds-input{height:36px;padding:0 10px;border-radius:6px;border:1px solid #2f2f3d;background:#0b0b0f;color:#f2f2f5;font:14px ui-sans-serif,system-ui,sans-serif;caret-color:#7c9cff}.ds-input::placeholder{color:#8a8da0}.ds-input:focus{outline:none;border-color:#7c9cff;box-shadow:0 0 0 3px rgba(124,156,255,.18)}"
+    },
+    {
+      "name": "Status Chips and Pills",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Top-bar system chips and per-request status pills.",
+      "html": "<div style=\"display:flex;gap:6px;flex-wrap:wrap\"><span class=\"ds-chip\">Simulated calls</span><span class=\"ds-chip ds-chip-live\">Live calls</span><span class=\"ds-pill ds-pill-calling\">calling</span><span class=\"ds-pill ds-pill-wait\">awaiting approval</span><span class=\"ds-pill ds-pill-ok\">resolved</span></div>",
+      "css": ".ds-chip{font:12px ui-sans-serif,system-ui,sans-serif;padding:3px 10px;border-radius:99px;background:#17171f;color:#a3a6b8;border:1px solid #23232e}.ds-chip-live{background:#c2334a;color:#fff;border-color:transparent}.ds-pill{font:600 11.5px ui-sans-serif,system-ui,sans-serif;padding:2px 9px;border-radius:99px;white-space:nowrap}.ds-pill-calling{background:rgba(124,180,255,.12);color:#7cb4ff}.ds-pill-wait{background:rgba(245,181,68,.13);color:#f5b544}.ds-pill-ok{background:rgba(74,222,128,.12);color:#4ade80}"
+    },
+    {
+      "name": "Approval Gate",
+      "kind": "card",
+      "refersTo": "gate",
+      "description": "The one bordered container: an explicit human approval.",
+      "html": "<div class=\"ds-gate\"><p class=\"ds-gate-q\">Call 4 blood banks for 3 units of O+?</p><p class=\"ds-gate-sub\">Nothing is dialled until you approve.</p><div class=\"ds-gate-actions\"><button class=\"ds-gbtn\">Not yet</button><button class=\"ds-gbtn ds-gbtn-p\">Approve</button></div></div>",
+      "css": ".ds-gate{border-radius:10px;padding:14px;border:1px solid rgba(245,181,68,.35);background:rgba(245,181,68,.13);color:#ffe2a8;font:14px/1.5 ui-sans-serif,system-ui,sans-serif}.ds-gate p{margin:0}.ds-gate-q{font-weight:600;margin-bottom:4px}.ds-gate-sub{font-size:13px;color:#a3a6b8;margin-bottom:12px}.ds-gate-actions{display:flex;gap:8px;justify-content:flex-end}.ds-gbtn{height:34px;padding:0 14px;border-radius:6px;border:1px solid #2f2f3d;background:#17171f;color:#f2f2f5;font:550 13px ui-sans-serif,system-ui,sans-serif;cursor:pointer}.ds-gbtn:hover{background:#1d1d27}.ds-gbtn-p{background:#f2f2f5;color:#0b0b0f;border-color:#f2f2f5}.ds-gbtn-p:hover{background:#fff}"
+    },
+    {
+      "name": "Call Row",
+      "kind": "custom",
+      "refersTo": "call-row",
+      "description": "Live bank call with state icon, meta, phone-confirmed result.",
+      "html": "<div class=\"ds-call\"><span class=\"ds-dial\"></span><span class=\"ds-call-body\"><span class=\"ds-call-name\">Rotary Blood Bank</span><span class=\"ds-call-meta\">2.4 km · portal says 6</span></span><span class=\"ds-units\">3 <small>units</small></span></div>",
+      "css": ".ds-call{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:center;padding:9px 8px;border-radius:6px;font-family:ui-sans-serif,system-ui,sans-serif;color:#f2f2f5;cursor:pointer;transition:background .4s cubic-bezier(0.16,1,0.3,1)}.ds-call:hover{background:#1d1d27}.ds-dial{position:relative;width:9px;height:9px;border-radius:50%;background:#7cb4ff;justify-self:center}.ds-dial::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:1.5px solid #7cb4ff;animation:ds-ring 1.4s cubic-bezier(0.16,1,0.3,1) infinite}@keyframes ds-ring{from{transform:scale(.5);opacity:1}to{transform:scale(1.3);opacity:0}}.ds-call-body{display:grid;gap:2px;min-width:0}.ds-call-name{font-size:13.5px;font-weight:550}.ds-call-meta{font-size:12px;color:#8a8da0}.ds-units{font-size:15px;font-weight:650;font-variant-numeric:tabular-nums}.ds-units small{font-size:11.5px;font-weight:450;color:#a3a6b8}"
+    },
+    {
+      "name": "Orb",
+      "kind": "custom",
+      "refersTo": "orb",
+      "description": "Static approximation of the canvas orb (idle palette); the shipped orb deforms from live audio.",
+      "html": "<div class=\"ds-orb-stage\"><div class=\"ds-orb\"></div><p class=\"ds-orb-label\">Listening</p></div>",
+      "css": ".ds-orb-stage{display:grid;justify-items:center;gap:16px;padding:24px;background:#0b0b0f;font-family:ui-sans-serif,system-ui,sans-serif}.ds-orb{width:160px;height:160px;border-radius:50%;background:radial-gradient(circle at 38% 30%,#c9d3ff 0%,#7c9cff 45%,#3b4bd8 100%);box-shadow:0 0 80px 10px rgba(124,156,255,.22)}.ds-orb-label{margin:0;font-size:20px;font-weight:600;letter-spacing:-0.015em;color:#f2f2f5}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Switchboard",
+    "overview": "RaktSetu plays the voice-assistant category standard straight: a near-black room, one living orb at its centre, and a precise live-status board beside it. The orb is the only object allowed to glow; everything else is flat, hairline-seamed, and set in the system sans at small, exact sizes. The screen exists to prove what the voice said, so the board reads like an instrument panel rather than a page.\n\nColour carries meaning, never mood. Five state hues (green, blue, amber, red, violet) appear only where a call, gate or line is in that state, almost always as a tinted wash with matching text. The deadline and the confirmed-unit count are the loudest typography on screen; nothing decorative competes with them.\n\nDensity is operator-grade: 12 to 14.5px text, 34px controls, tabular figures for every count and time. Motion is restrained and state-driven (a dialing ring, a confirmation flash, the orb's audio-driven deformation), and all of it collapses under reduced motion.",
+    "keyCharacteristics": [
+      "Near-black ground with two lifted surface steps and hairline seams; no shadows.",
+      "One signature: the periwinkle-to-indigo orb that deforms from live audio.",
+      "State colour only for meaning, as 12-14% tinted washes with full-strength text.",
+      "System UI sans throughout; tabular numerals on every figure.",
+      "Pills for status, small radii for controls, full circles for voice controls."
+    ],
+    "rules": [
+      {
+        "name": "The Meaning-Only Rule",
+        "body": "A state hue appears only where something is in that state. No hue is used for emphasis, decoration, or brand.",
+        "section": "colors"
+      },
+      {
+        "name": "The Wash-Not-Fill Rule",
+        "body": "State is shown as a tinted wash with full-strength text of the same hue. Solid state fills are reserved for LIVE and end-call, the two moments that touch the real world.",
+        "section": "colors"
+      },
+      {
+        "name": "The Voice Owns Periwinkle Rule",
+        "body": "Periwinkle marks the voice and keyboard focus. It is never a button fill.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Every count, unit, time and countdown uses tabular figures.",
+        "section": "typography"
+      },
+      {
+        "name": "The Weight-Ladder Rule",
+        "body": "Hierarchy moves through weights 450, 550, 600, 650 at small size steps; do not introduce a display face or sizes above the 40px figure.",
+        "section": "typography"
+      },
+      {
+        "name": "The Seam Rule",
+        "body": "Regions are divided by 1px seams, never by gaps of colour or cards floating on ground.",
+        "section": "layout"
+      },
+      {
+        "name": "The One Glow Rule",
+        "body": "Only the orb emits light. No box-shadows on panels, cards, buttons or popovers.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do show state as a 12-14% wash of the state hue with full-strength text in that hue.",
+      "Do divide regions with 1px seams (`seam` between regions, `seam-strong` on control borders).",
+      "Do use tabular figures for every count, time and countdown.",
+      "Do keep the orb the only glowing object, and let it respond to real audio levels.",
+      "Do honour reduced motion: the orb stills and transitions collapse.",
+      "Do keep controls at 34px (44px for the one large stage action, 56px for round voice controls)."
+    ],
+    "donts": [
+      "Don't use a state hue for emphasis or decoration; it must mean the state.",
+      "Don't add box-shadows or floating cards on the ground; depth is tonal.",
+      "Don't fill buttons with periwinkle; it belongs to the voice and focus.",
+      "Don't use solid red fills anywhere except LIVE and end-call.",
+      "Don't set any text larger than the 40px confirmed-units figure."
+    ]
+  }
+}

@@ -68,51 +68,42 @@ Two banks in the same hospital campus can share one coordinate, so offset or clu
 A call's `distance_km` is fixed when the call is queued, while background locating may fill a bank's `lat/lng` later.
 Trust `lat/lng` for the map and `distance_km` for the text.
 
-## TODO: voice in the browser (not built yet)
+## Voice in the browser (built)
 
-**Today:** voice runs only from a laptop Python script, `voice/intake_voice.py`. It uses the Sarvam SDK
-(`sarvam_conv_ai_sdk.AsyncSamvaadAgent`, `InteractionType.CALL`) with the laptop mic/speaker.
-The Sarvam agent itself calls our backend's `/tools/*` endpoints, so a voice-made request shows up in
-`/api/requests` and `/api/stream` like a typed one.
+The app in `frontend/` (Vite + React + TS) talks to the Sarvam intake agent through a backend WebSocket relay,
+`WS /api/voice/ws` (`app/voice_bridge.py`). `SARVAM_API_KEY` stays on the server.
 
-**Problem:** the SDK's default audio has no echo cancellation. On laptop speakers the agent hears
-itself, so the script gates the mic while the agent speaks and you can't interrupt it.
-A browser mic with WebRTC echo cancellation fixes that and gives "ChatGPT voice mode" barge-in.
+- Browser: `getUserMedia` with echo cancellation, an AudioWorklet (`frontend/public/pcm-worklet.js`) downsamples
+  to 16 kHz PCM16 in 20 ms frames, sent as binary. Agent audio comes back as binary frames prefixed with a
+  4-byte little-endian sample rate (Sarvam sends 8 kHz today). The mic stays open, so the user can talk over the agent.
+- JSON frames: `state` (connecting / connected / ended / error), `greeting`, `transcript` (role + text),
+  `speech` (user start/end, from Sarvam VAD), `interrupt` (stop buffered playback).
+- Voice only: this intake app returns 404 for Sarvam's chat interaction, and a CALL closes on text input.
+  Without a mic, the UI points to the typed request form (`POST /api/requests`), which is the same flow.
+- `GET /api/flags` now also returns `voice_ready` (Sarvam + intake app configured).
 
-**Rule:** `SARVAM_API_KEY` must never reach the browser. Keep it in the backend.
+## Run the frontend
 
-How to build it, preferred first:
-1. **Sarvam web SDK / widget** (check Sarvam's docs for a browser SDK or embeddable agent for
-   Samvaad/Voice Agents). If one exists, add a backend endpoint, e.g. `POST /api/voice/session`, that
-   creates a short-lived session or token server-side and returns only that. The browser connects with it.
-   Pass the same `agent_variables` + `initial_bot_message` the script gets from `GET /api/intake/context?coordinator_name=..`.
-   App id and version: `SARVAM_INTAKE_APP_ID` / `SARVAM_INTAKE_APP_VERSION` in backend env.
-2. **Otherwise, a WebSocket audio relay through the backend:**
-   - Browser: `getUserMedia({audio: {echoCancellation: true, noiseSuppression: true, autoGainControl: true}})`,
-     convert to 16 kHz mono PCM16 in an AudioWorklet, and send binary frames to a new `WS /api/voice/ws`.
-     Play agent audio from the server's binary frames. Its sample rate can change, so the server should announce it.
-   - Backend: per connection, run `AsyncSamvaadAgent` with a **custom audio interface** that reads mic
-     frames from the WebSocket and writes agent audio back to it. See how `voice/intake_voice.py`
-     subclasses `AsyncDefaultAudioInterface` (`_pyaudio_input_callback`, `output_queue`, `_output_task`,
-     `current_output_sample_rate`) and the SDK source in `.venv/lib/python3.12/site-packages/sarvam_conv_ai_sdk/`.
-     Forward `transcript_callback` messages (role + text) as JSON text frames for live captions.
-   - With browser echo cancellation on, keep the mic open while the agent talks, so barge-in works.
-     Drop the half-duplex gating used by the laptop script.
-   - **Echo-cancellation catch:** the browser can only remove the agent's voice from the mic if it knows
-     what is being played. Chrome reliably cancels audio that arrives over WebRTC (an `RTCPeerConnection`
-     remote track). Audio played through the Web Audio API, or an `<audio>` element fed from a WebSocket,
-     may not be cancelled on every OS/browser, and then the agent hears itself again on laptop speakers.
-     Fixes, best first:
-     (a) use Sarvam's web SDK if it plays audio over WebRTC;
-     (b) route the agent's audio through a local loopback `RTCPeerConnection` pair, then into an `<audio>` element;
-     (c) at minimum, test on laptop speakers without headphones in Chrome and Safari.
-     If echo remains, briefly duck/mute the mic while agent audio is playing.
-3. Keep the typed flow (`POST /api/requests` → `start` → `/api/stream`) as the fallback when the mic is unavailable.
+```bash
+cd frontend && npm install && npm run dev      # http://localhost:5173, proxies /api and the voice socket to :8000
+cd frontend && npm run build                   # FastAPI then serves frontend/dist at http://localhost:8000/
+```
+
+The old single-file dashboard is still at `/legacy`.
+
+### Open issue: echo cancellation
+
+The browser can only remove the agent's voice from the mic if it knows what is being played. Chrome reliably
+cancels audio that arrives over WebRTC (an `RTCPeerConnection` remote track). The current relay plays agent audio
+through the Web Audio API, which may not be cancelled on every OS/browser, so on laptop speakers the agent can
+hear itself. Fixes, best first: (a) Sarvam's web SDK if it plays audio over WebRTC; (b) route the agent's audio
+through a local loopback `RTCPeerConnection` pair into an `<audio>` element; (c) test on laptop speakers without
+headphones in Chrome and Safari, and if echo remains, briefly duck the mic while agent audio plays.
 
 ## Run the backend locally
 
 ```bash
-.venv/bin/uvicorn app.main:app --port 8000
+.venv/bin/uvicorn app.main:app --port 8000   # dev: add --reload --reload-dir app --timeout-graceful-shutdown 2
 ```
 
 Real calls only. There are no mocks, and real banks are never dialled unless Flagsmith `call_real_banks` is on.

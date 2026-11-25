@@ -17,3 +17,5 @@ __pycache__
 
 # gcloud builds submit uploads only what the Dockerfile needs
 .gcloudignore
+frontend/node_modules
+frontend/dist

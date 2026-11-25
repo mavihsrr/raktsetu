@@ -66,6 +66,8 @@ class Settings:
     sarvam_bank_app_version: str = field(default_factory=lambda: _env("SARVAM_BANK_APP_VERSION"))
     sarvam_donor_app_id: str = field(default_factory=lambda: _env("SARVAM_DONOR_APP_ID"))
     sarvam_donor_app_version: str = field(default_factory=lambda: _env("SARVAM_DONOR_APP_VERSION"))
+    sarvam_intake_app_id: str = field(default_factory=lambda: _env("SARVAM_INTAKE_APP_ID"))
+    sarvam_intake_app_version: str = field(default_factory=lambda: _env("SARVAM_INTAKE_APP_VERSION"))
     sarvam_base_url: str = field(default_factory=lambda: _env("SARVAM_BASE_URL", "https://apps.sarvam.ai").rstrip("/"))
     live_targets: dict[str, str] = field(default_factory=lambda: _parse_live_targets(_env("LIVE_TARGETS")))
     # Our own phone(s) that stand in for the real banks while call_real_banks is off.
