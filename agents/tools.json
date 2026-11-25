@@ -1,0 +1,70 @@
+{
+  "_note": "HTTP tools for the intake agent. Replace {{BASE_URL}} with the cloudflared URL and set header X-Tool-Secret to TOOL_SECRET from .env. All tools are POST with a JSON body and return JSON with a speakable `say` and a `next_action` hint. get_status long-polls up to 25 s (Sarvam tool timeout is 30 s).",
+  "headers": {"X-Tool-Secret": "{{TOOL_SECRET}}", "Content-Type": "application/json"},
+  "tools": [
+    {
+      "name": "find_leads",
+      "method": "POST",
+      "url": "{{BASE_URL}}/tools/find_leads",
+      "description": "Plan a blood search. Finds blood banks and eligible donors near the hospital. Calls NOBODY. Returns request_id and a summary to read to the user, then you must ask for permission before start_calls.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "blood_group": {"type": "string", "description": "Patient blood group, e.g. B+, O-, AB+"},
+          "units": {"type": "integer", "description": "Units needed (1-20)"},
+          "location": {"type": "string", "description": "Hospital name where the patient is"},
+          "deadline_hours": {"type": "number", "description": "Hours until the blood is needed"},
+          "component": {"type": "string", "description": "packed red cells | whole blood | platelets. Omit if not stated."}
+        },
+        "required": ["blood_group", "units", "location"]
+      }
+    },
+    {
+      "name": "start_calls",
+      "method": "POST",
+      "url": "{{BASE_URL}}/tools/start_calls",
+      "description": "Start phoning the banks and donors for a request. Only call after the user explicitly said yes. Set confirmed=true only then; the server refuses otherwise.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "request_id": {"type": "string"},
+          "confirmed": {"type": "boolean", "description": "true only if the user explicitly agreed to start calls"}
+        },
+        "required": ["request_id", "confirmed"]
+      }
+    },
+    {
+      "name": "get_status",
+      "method": "POST",
+      "url": "{{BASE_URL}}/tools/get_status",
+      "description": "Wait (up to 25 s) for new call results and return a short update in `say`. Keep calling until done=true. If needs_approval=true, ask the user and wait.",
+      "parameters": {
+        "type": "object",
+        "properties": {"request_id": {"type": "string"}},
+        "required": ["request_id"]
+      }
+    },
+    {
+      "name": "approve_wave2",
+      "method": "POST",
+      "url": "{{BASE_URL}}/tools/approve_wave2",
+      "description": "Widen the search to the larger radius. Only after the user said yes to widening.",
+      "parameters": {
+        "type": "object",
+        "properties": {"request_id": {"type": "string"}},
+        "required": ["request_id"]
+      }
+    },
+    {
+      "name": "cancel_request",
+      "method": "POST",
+      "url": "{{BASE_URL}}/tools/cancel_request",
+      "description": "Stop a request: no further calls are made. Use when the user says stop/cancel or declines widening.",
+      "parameters": {
+        "type": "object",
+        "properties": {"request_id": {"type": "string"}},
+        "required": ["request_id"]
+      }
+    }
+  ]
+}

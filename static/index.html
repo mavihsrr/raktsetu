@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RaktSetu Console</title>
+<style>
+:root{
+  --bg:#f6f5f2;--panel:#fff;--ink:#1d1b19;--muted:#6b6660;--line:#e4e0da;
+  --red:#b3261e;--red-soft:#fbe9e7;--green:#1e7a45;--green-soft:#e3f4ea;--amber:#8a5a00;--amber-soft:#fff3d6;
+  --blue:#1f5fa8;--blue-soft:#e6eef9;--chip:#efece7;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#141312;--panel:#1d1c1a;--ink:#eeeae4;--muted:#a19a91;--line:#2f2d2a;
+  --red:#ff8a80;--red-soft:#3a1d1b;--green:#7fd6a0;--green-soft:#173126;--amber:#f4c46a;--amber-soft:#3a2f17;
+  --blue:#8bb8f0;--blue-soft:#1a2a40;--chip:#2a2826;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:2}
+header h1{font-size:17px;margin:0;letter-spacing:.2px}
+header h1 span{color:var(--red)}
+.fict{font-size:12px;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.chip{background:var(--chip);border-radius:999px;padding:3px 10px;font-size:12px;white-space:nowrap;border:1px solid transparent}
+.chip.on{background:var(--green-soft);color:var(--green)}
+.chip.off{background:var(--red-soft);color:var(--red)}
+.chip.warn{background:var(--amber-soft);color:var(--amber)}
+.chip button{all:unset;cursor:pointer;text-decoration:underline;margin-left:6px;font-size:11px}
+main{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px 20px;max-width:1400px;margin:0 auto}
+@media (max-width:900px){main{grid-template-columns:1fr;padding:12px 16px}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:0 0 10px}
+form{display:grid;gap:8px}
+label{font-size:12px;color:var(--muted);display:grid;gap:3px}
+input,select{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);width:100%}
+button.btn{font:inherit;font-weight:600;padding:8px 12px;border-radius:7px;border:1px solid var(--line);background:var(--chip);color:var(--ink);cursor:pointer}
+button.primary{background:var(--red);border-color:var(--red);color:#fff}
+@media (prefers-color-scheme: dark){button.primary{color:#1d1b19}}
+button.btn:disabled{opacity:.5;cursor:default}
+.reqs{display:grid;gap:6px;margin-top:12px}
+.req{padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;display:grid;gap:2px}
+.req.sel{border-color:var(--red);box-shadow:0 0 0 1px var(--red) inset}
+.req small{color:var(--muted)}
+.st{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;justify-self:start}
+.st.calling{background:var(--blue-soft);color:var(--blue)}
+.st.awaiting_wave2{background:var(--amber-soft);color:var(--amber)}
+.st.resolved{background:var(--green-soft);color:var(--green)}
+.st.unresolved,.st.cancelled{background:var(--red-soft);color:var(--red)}
+.st.planned{background:var(--chip);color:var(--muted)}
+.right{display:grid;gap:16px;min-width:0}
+.top{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center}
+@media (max-width:600px){.top{grid-template-columns:1fr}}
+.counter{font-size:44px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.counter small{font-size:16px;color:var(--muted);font-weight:500}
+.bar{height:10px;background:var(--chip);border-radius:999px;overflow:hidden;margin-top:8px}
+.bar>div{height:100%;background:var(--green);transition:width .4s}
+.meta{color:var(--muted);font-size:13px}
+.card{border-radius:10px;padding:12px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.card.approve{background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber)}
+.card.leads{background:var(--blue-soft);color:var(--blue);border:1px solid var(--blue)}
+.card p{margin:0;flex:1;min-width:220px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--chip)}
+.mode{font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--chip);color:var(--muted)}
+.mode.live{background:var(--red);color:#fff}
+.mode.demo{background:#7c4dff;color:#fff}
+.mode.lead{background:var(--chip);color:var(--muted);border:1px dashed var(--muted)}
+.cs{font-weight:600}
+.cs.completed{color:var(--green)}.cs.dialing{color:var(--blue)}.cs.queued,.cs.skipped{color:var(--muted)}
+.cs.no_answer,.cs.busy,.cs.failed{color:var(--red)}
+.mismatch{background:var(--amber-soft);color:var(--amber);border-radius:4px;padding:0 5px;font-size:11px;font-weight:600}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--blue);margin-right:5px;animation:p 1s infinite}
+@keyframes p{50%{opacity:.25}}
+.plan ol{margin:6px 0 0 18px;padding:0}
+.plan li{margin:4px 0}
+.alloc{display:grid;gap:6px;margin:8px 0}
+.alloc div{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;flex-wrap:wrap}
+.log{max-height:260px;overflow:auto;font-size:12.5px;display:grid;gap:4px}
+.log div{padding:4px 0;border-bottom:1px dashed var(--line)}
+.log time{color:var(--muted);margin-right:6px;font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);padding:30px;text-align:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:1100px){.grid2{grid-template-columns:1fr}}
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);max-width:560px;width:calc(100% - 32px)}
+dialog .t{display:grid;gap:6px;margin:10px 0}
+dialog .t div{padding:6px 9px;border-radius:8px;background:var(--chip)}
+dialog .t div.agent{background:var(--blue-soft)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Rakt<span>Setu</span> · blood-centre console</h1>
+  <span class="fict">All banks, donors and numbers are fictional · SIM = simulated call</span>
+  <div class="chips" id="chips"></div>
+</header>
+<main>
+  <section>
+    <div class="panel">
+      <h2>New request</h2>
+      <form id="f">
+        <label>Hospital<select name="location" id="hosp">
+          <option>City General Hospital</option><option>Koramangala City Hospital</option><option>Malleshwaram Care Hospital</option>
+        </select></label>
+        <div class="grid2" style="gap:8px">
+          <label>Blood group<select name="blood_group">
+            <option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>A+</option><option>A-</option><option>AB+</option><option>AB-</option>
+          </select></label>
+          <label>Units<input name="units" type="number" min="1" max="20" value="4"></label>
+        </div>
+        <div class="grid2" style="gap:8px">
+          <label>Component<select name="component">
+            <option value="packed_red_cells">Packed red cells</option><option value="whole_blood">Whole blood</option><option value="platelets">Platelets</option>
+          </select></label>
+          <label>Needed within (h)<input name="deadline_hours" type="number" min="0.5" step="0.5" value="3"></label>
+        </div>
+        <button class="btn primary" type="submit">Find leads</button>
+        <div id="ferr" class="meta"></div>
+      </form>
+      <div class="reqs" id="reqs"></div>
+    </div>
+  </section>
+  <section class="right" id="detail"><div class="panel empty">Create a request, or speak to the intake agent. Requests appear here live.</div></section>
+</main>
+<dialog id="dlg"><div id="dlgbody"></div><form method="dialog"><button class="btn">Close</button></form></dialog>
+<script>
+const qs = new URLSearchParams(location.hash.slice(1));
+const TOKEN = qs.get("token") || "";
+const H = TOKEN ? {"X-Dashboard-Token": TOKEN} : {};
+let selected = null, current = null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const api = async (path, opts={}) => {
+  const r = await fetch(path, {...opts, headers: {"Content-Type":"application/json", ...H, ...(opts.headers||{})}});
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+};
+const GL = {"packed_red_cells":"packed red cells","whole_blood":"whole blood","platelets":"platelets"};
+
+async function loadFlags(){
+  try{
+    const f = await api("/api/flags"), v = f.values;
+    const chip = (cls, txt, toggle) => `<span class="chip ${cls}">${txt}${toggle?`<button data-flag="${toggle[0]}" data-val='${JSON.stringify(toggle[1])}'>${toggle[2]}</button>`:""}</span>`;
+    $("#chips").innerHTML =
+      chip(v.outbound_calls_enabled?"on":"off", `Outbound ${v.outbound_calls_enabled?"ON":"KILLED"}`, ["outbound_calls_enabled", !v.outbound_calls_enabled, v.outbound_calls_enabled?"kill":"enable"]) +
+      chip(v.call_mode==="live"?"warn":"", `Mode: ${v.call_mode}`) +
+      chip(v.autopilot_mode?"warn":"", `Autopilot ${v.autopilot_mode?"ON":"OFF"}`, ["autopilot_mode", !v.autopilot_mode, "toggle"]) +
+      chip("", `Parallel ${v.max_parallel_calls}`) +
+      chip("", `Radius ${v.bank_radius_km} km → ×${v.wave2_radius_multiplier}`) +
+      chip("", `Donors ${v.donor_radius_km} km`) +
+      chip(f.source==="flagsmith"?"on":"warn", `Flags: ${f.source}${f.overridden.length?" + local override":""}`) +
+      chip(f.sarvam_configured?"on":"", f.sarvam_configured?`Sarvam ready · ${f.live_targets.length} live target(s)`:"Sarvam not configured");
+  }catch(e){ $("#chips").innerHTML = `<span class="chip off">flags unavailable</span>`; }
+}
+$("#chips").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-flag]"); if (!b) return;
+  await api("/api/flags/override", {method:"POST", body: JSON.stringify({name:b.dataset.flag, value: JSON.parse(b.dataset.val)})});
+  loadFlags();
+});
+
+async function loadList(){
+  const rows = await api("/api/requests");
+  $("#reqs").innerHTML = rows.map(r => `
+    <div class="req ${r.id===selected?"sel":""}" data-id="${r.id}">
+      <div><b>${esc(r.units)}× ${esc(r.blood_group)}</b> ${esc(GL[r.component])} <span class="st ${r.status}">${r.status.replace("_"," ")}</span></div>
+      <small>${esc(r.id)} · ${esc(r.hospital_name)} · ${Math.min(r.confirmed_units,r.units)}/${r.units} confirmed${r.confirmed_units>r.units?` (+${r.confirmed_units-r.units} backup)`:""}</small>
+    </div>`).join("");
+  if (!selected && rows.length) select(rows[0].id);
+}
+$("#reqs").addEventListener("click", e => { const d = e.target.closest(".req"); if (d) select(d.dataset.id); });
+
+async function select(id){ selected = id; await render(); loadList(); }
+
+function fmtT(ts){ return new Date(ts*1000).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"}); }
+
+async function render(){
+  if (!selected) return;
+  const st = await api(`/api/requests/${selected}`); current = st;
+  const r = st.request, p = st.plan, total = st.calls.filter(c=>c.target_type==="bank"&&c.status==="completed").reduce((a,c)=>a+c.confirmed_units+c.alt_units,0);
+  const pct = Math.min(100, 100*p.confirmed/p.needed);
+  const leads = st.events.find(e=>e.type==="leads_found");
+  const mins = r.deadline_at ? Math.round((r.deadline_at - Date.now()/1000)/60) : null;
+  const banks = st.calls.filter(c=>c.target_type==="bank"), donors = st.calls.filter(c=>c.target_type==="donor");
+  const badge = c => c.route==="demo" ? '<span class="mode demo">DEMO LINE</span>'
+    : c.route==="real" ? '<span class="mode live">LIVE</span>' : c.route==="lead" ? '<span class="mode lead">LEAD</span>'
+    : c.mode==="live" ? '<span class="mode live">LIVE</span>' : c.mode ? '<span class="mode">SIM</span>' : "";
+  const row = c => {
+    const units = c.target_type==="bank"
+      ? (c.status==="completed" ? `${c.confirmed_units}${c.alt_units?` + ${c.alt_units} ${esc(c.alt_group)}`:""}` : "–")
+      : (c.willing ? esc(c.willing) : "–");
+    const mm = c.target_type==="bank" && c.status==="completed" && c.portal_units!==c.confirmed_units ? ` <span class="mismatch">portal ${c.portal_units} ≠ phone ${c.confirmed_units}</span>` : "";
+    return `<tr class="click" data-call="${c.id}">
+      <td>${c.status==="dialing"?'<span class="dot"></span>':""}${esc(c.target_name)}</td>
+      <td class="num">${c.distance_km} km</td><td>W${c.wave}</td>
+      <td>${badge(c)}</td>
+      <td class="cs ${c.status}">${c.status.replace("_"," ")}</td>
+      ${c.target_type==="bank"?`<td class="num">${c.portal_units ?? "–"}</td>`:""}
+      <td class="num">${units}${mm}</td><td>${c.hold_hours?c.hold_hours+" h":esc(c.notes||"")}</td></tr>`;
+  };
+  $("#detail").innerHTML = `
+    <div class="panel top">
+      <div><div class="counter">${p.confirmed}<small> / ${p.needed} units</small></div>
+        <div class="bar"><div style="width:${pct}%"></div></div></div>
+      <div><div><b>${esc(r.units)}× ${esc(r.blood_group)} ${esc(p.component_label)}</b> · ${esc(st.hospital.name)} <span class="st ${r.status}">${r.status.replace("_"," ")}</span></div>
+        <div class="meta">${esc(r.id)} · wave ${r.wave} · ${r.bank_radius_km} km${r.wave>=2?` → ${r.wave2_radius_km} km`:""} · ${mins!==null?(mins>0?`${mins} min to deadline`:"deadline passed"):"no deadline"}
+        ${total>p.confirmed?` · ${total} confirmed in total (${total-p.confirmed} backup)`:""}</div>
+        <div class="meta">Only phone-confirmed bank units count. Donors restock and are shown separately.</div></div>
+    </div>
+    ${r.status==="planned" ? `<div class="card leads"><p>${esc(leads?.say||"")}</p>
+      <button class="btn primary" id="go">Yes, start calling</button></div>`:""}
+    ${r.status==="awaiting_wave2" ? `<div class="card approve"><p>${esc(st.events.filter(e=>e.type==="approval_needed").pop()?.say||"Widen the search?")}</p>
+      <button class="btn primary" id="approve">Approve wave 2</button></div>`:""}
+    ${(r.status==="resolved"||r.status==="unresolved") ? `<div class="panel plan"><h2>Ranked plan</h2>
+      <div class="alloc">${p.allocation.map((a,i)=>`<div><span><b>${i+1}. ${esc(a.bank_name)}</b> ${badge(a)}</span>
+        <span>${a.units} × ${esc(a.group)}${a.exact_match?"":" (compatible)"} · ~${a.eta_min} min · hold ${a.hold_hours??"?"} h</span></div>`).join("") || "<div>No confirmed units.</div>"}</div>
+      <ol>${p.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>
+      ${p.late_vs_deadline.length?`<p class="mismatch">May miss deadline: ${p.late_vs_deadline.map(esc).join(", ")}</p>`:""}</div>`:""}
+    <div class="panel"><h2>Bank calls ${["calling"].includes(r.status)?`<button class="btn" id="cancel" style="float:right;padding:3px 9px">Cancel request</button>`:""}</h2>
+      ${banks.length?`<div class="tablewrap"><table><tr><th>Bank</th><th>Dist</th><th>Wave</th><th></th><th>Status</th><th>Portal</th><th>Phone-confirmed</th><th>Hold / note</th></tr>${banks.map(row).join("")}</table></div>`
+      : (leads?.payload?.shortlist ? `<div class="meta">Live from e-RaktKosh: ${leads.payload.banks_in_radius} banks within ${leads.payload.bank_radius_km} km of ${esc(leads.payload.location)}, ${leads.payload.banks_with_stock} listing compatible stock. Shortlist to phone:</div>
+        <div class="tablewrap"><table><tr><th>Bank</th><th>Dist</th><th>Portal (compatible)</th><th>Phone</th><th>Portal updated</th></tr>
+        ${leads.payload.shortlist.map(b=>`<tr><td><b>${esc(b.name)}</b><br><small>${esc(b.address||"")}</small></td><td>${b.distance_km} km</td><td>${b.portal_units}</td><td>${esc(b.phone||"n/a")}</td><td>${esc((b.portal_updated_at||"").replace("T"," "))}</td></tr>`).join("")}</table></div>`
+        : `<div class="meta">No calls yet.</div>`)}
+    </div>
+    <div class="grid2">
+      <div class="panel"><h2>Donors (restock only, not counted)</h2>
+        ${donors.length?`<div class="tablewrap"><table><tr><th>Donor</th><th>Dist</th><th>Wave</th><th></th><th>Status</th><th>Willing</th><th>Note</th></tr>${donors.map(row).join("")}</table></div>`
+         : `<div class="meta">${leads?`${leads.payload.donors_eligible.length} eligible; excluded: ${leads.payload.donors_excluded.map(d=>`${esc(d.name)} (${esc(d.reason)})`).join(", ")||"none"}`:""}</div>`}
+      </div>
+      <div class="panel"><h2>Live narration</h2><div class="log">${st.events.filter(e=>e.say).slice().reverse().map(e=>`<div><time>${fmtT(e.ts)}</time>${esc(e.say)}</div>`).join("")}</div></div>
+    </div>`;
+  $("#go")?.addEventListener("click", async ev => { ev.target.disabled = true; await api(`/api/requests/${r.id}/start`, {method:"POST"}); });
+  $("#approve")?.addEventListener("click", async ev => { ev.target.disabled = true; await api(`/api/requests/${r.id}/approve`, {method:"POST"}); });
+  $("#cancel")?.addEventListener("click", async () => { if (confirm("Cancel this request? Queued calls will be skipped.")) await api(`/api/requests/${r.id}/cancel`, {method:"POST"}); });
+}
+
+$("#detail").addEventListener("click", e => {
+  const tr = e.target.closest("tr[data-call]"); if (!tr || !current) return;
+  const c = current.calls.find(x => x.id === tr.dataset.call); if (!c) return;
+  $("#dlgbody").innerHTML = `<h3 style="margin:0">${esc(c.target_name)} ${badge(c)}</h3>
+    <div class="meta">${c.phone?`Bank phone (e-RaktKosh): ${esc(c.phone)}`:""}${c.route==="demo"?" · this call went to the demo line":""}</div>
+    <div class="meta">${esc(c.status)} · ${esc(c.notes||"")}</div>
+    <div class="t">${(c.transcript||[]).map(t=>`<div class="${t.role==="agent"||t.role==="bot"?"agent":""}"><b>${esc(t.role)}:</b> ${esc(t.text)}</div>`).join("") || "<div>No transcript yet.</div>"}</div>`;
+  $("#dlg").showModal();
+});
+
+$("#f").addEventListener("submit", async e => {
+  e.preventDefault(); $("#ferr").textContent = "";
+  const body = Object.fromEntries(new FormData(e.target));
+  const r = await api("/api/requests", {method:"POST", body: JSON.stringify(body)});
+  if (!r.ok) { $("#ferr").textContent = r.say; return; }
+  await select(r.request_id);
+});
+
+let pending = null;
+function schedule(){ if (pending) return; pending = setTimeout(async () => { pending = null; await loadList(); await render(); }, 150); }
+function connect(){
+  const es = new EventSource(`/api/stream${TOKEN?`?token=${encodeURIComponent(TOKEN)}`:""}`);
+  es.addEventListener("update", ev => { const e = JSON.parse(ev.data); if (e.type==="leads_found") selected = e.request_id; if (!selected || e.request_id === selected || e.type==="leads_found") schedule(); });
+  es.onerror = () => {};
+}
+loadFlags(); setInterval(loadFlags, 5000);
+loadList().then(render); connect();
+setInterval(() => { if (current && current.request.status==="calling") render(); }, 4000);
+</script>
+</body>

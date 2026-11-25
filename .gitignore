@@ -1,0 +1,11 @@
+.env
+data/*
+!data/bank_locations.json
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+flags.local.json
+*.egg-info/
+.claude/settings.local.json
+.DS_Store
