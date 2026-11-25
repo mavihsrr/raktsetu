@@ -29,6 +29,7 @@ from urllib.parse import urlsplit
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+from . import metrics
 from .config import settings
 
 log = logging.getLogger("raktsetu.voice")
@@ -183,6 +184,8 @@ async def run_session(ws: WebSocket, context_fn: Callable[[str, str], dict]) -> 
 
     await send({"type": "state", "state": "connecting"})
     pump = asyncio.create_task(pump_out())
+    outcome = "error"
+    metrics.VOICE_ACTIVE.inc()
     try:
         await agent.start()
         if not await agent.wait_for_connect(timeout=10):
@@ -190,6 +193,7 @@ async def run_session(ws: WebSocket, context_fn: Callable[[str, str], dict]) -> 
                         "detail": "Could not connect to Sarvam. Check the intake app version and API key."})
             return
         await send({"type": "state", "state": "connected"})
+        outcome = "ok"
         await send({"type": "greeting", "text": ctx["initial_bot_message"]})
         while agent.is_connected():
             msg = await ws.receive()
@@ -210,6 +214,8 @@ async def run_session(ws: WebSocket, context_fn: Callable[[str, str], dict]) -> 
         log.exception("voice session failed")
         await send({"type": "state", "state": "error", "detail": "Voice session failed on the server."})
     finally:
+        metrics.VOICE_ACTIVE.dec()
+        metrics.VOICE_SESSIONS.labels(outcome).inc()
         out_q.put_nowait(None)
         try:
             await agent.stop()

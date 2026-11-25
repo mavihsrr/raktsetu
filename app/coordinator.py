@@ -24,6 +24,7 @@ from .db import DB
 from .dialer import CallResult, SarvamDialer, SimulatedDialer, parse_sarvam_webhook
 from .flags import flags
 from .medical import COMPONENTS, InputError, compatible_groups, parse_blood_group, parse_component, spoken_group
+from . import metrics
 from .eraktkosh import PortalError, fetch_banks
 from .eraktkosh import resolve
 from .geocode import FAST_TERMS, MORE_TERMS, foreground, geocode_place, locate_banks
@@ -160,12 +161,26 @@ class Coordinator:
                str(component or "").strip().lower())
         task = self._leads_inflight.get(key)
         if task is None:
-            task = asyncio.ensure_future(self._find_leads(
+            task = asyncio.ensure_future(self._timed_leads(
                 blood_group=blood_group, units=units, location=location, deadline_hours=deadline_hours,
                 component=component, requested_by=requested_by))
             self._leads_inflight[key] = task
             task.add_done_callback(lambda _t: self._leads_inflight.pop(key, None))
         return await asyncio.shield(task)
+
+    async def _timed_leads(self, **kw) -> dict:
+        t0 = time.monotonic()
+        outcome = "error"
+        try:
+            res = await self._find_leads(**kw)
+            outcome = "ok"
+            return res
+        except InputError:
+            outcome = "rejected"   # bad input, unknown place, or the portal being down (see eraktkosh counter)
+            raise
+        finally:
+            metrics.SEARCHES.labels(outcome).inc()
+            metrics.SEARCH_SECONDS.observe(time.monotonic() - t0)
 
     async def _find_leads(self, *, blood_group: str, units: Any, location: str | None, deadline_hours: Any = None,
                           component: str | None = None, requested_by: str = "") -> dict:
@@ -230,6 +245,7 @@ class Coordinator:
                            state=place["state"])
                 t_portal = time.monotonic()
                 live = await asyncio.wait_for(fetch_banks(comp, state_code, dcodes), timeout=left())
+                metrics.PORTAL.labels("ok").inc()
                 alts = compatible_groups(group, comp)
                 await step(f"Response received from e-RaktKosh in {time.monotonic() - t_portal:.1f}s: "
                            f"{len(live)} blood banks in {district_label}, "
@@ -241,6 +257,7 @@ class Coordinator:
                                    "stale": bool(b.get("stale")), "updated": b["portal_updated_at"]} for b in live])
                 await step(f"Calculating the distance from {short_place} to each bank…", stage="distance", phase="start")
             except (PortalError, asyncio.TimeoutError):
+                metrics.PORTAL.labels("error").inc()
                 await step("e-RaktKosh isn't responding.")
                 raise InputError("The national blood bank portal, e-RaktKosh, isn't responding right now. "
                                  "Try again in a minute.")
@@ -743,6 +760,7 @@ class Coordinator:
         if not c or c["status"] in FINAL_CALL:
             return
         r = self.request(c["request_id"])
+        metrics.CALLS.labels(c["target_type"], c["route"] or "none", res.status).inc()
         self.db.update("calls", call_id, status=res.status, confirmed_units=res.confirmed_units,
                        alt_units=res.alt_units, alt_group=res.alt_group, hold_hours=res.hold_hours,
                        willing=res.willing, notes=res.notes, transcript=res.transcript, ended_at=time.time())

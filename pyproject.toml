@@ -9,6 +9,7 @@ dependencies = [
   "httpx>=0.27",
   "flagsmith>=6.0,<7",
   "python-dotenv>=1.0",
+  "prometheus-client>=0.20",
 ]
 
 [project.optional-dependencies]

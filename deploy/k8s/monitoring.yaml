@@ -1,0 +1,12 @@
+# Google Managed Prometheus scrapes the app's /metrics (app/metrics.py) every 30 s.
+# Apply after the build that serves /metrics is live:  kubectl apply -f deploy/k8s/monitoring.yaml
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: raktsetu
+  namespace: raktsetu
+spec:
+  selector:
+    matchLabels: {app: raktsetu}
+  endpoints:
+    - {port: http, path: /metrics, interval: 30s}

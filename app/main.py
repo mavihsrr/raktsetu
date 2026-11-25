@@ -18,7 +18,7 @@ from typing import Any
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
@@ -27,6 +27,7 @@ from .db import DB
 from .dialer import SarvamDialer, webhook_signature
 from .flags import DEFAULTS, flags
 from .medical import InputError
+from . import metrics
 from .voice_bridge import run_session as run_voice_session
 from .voice_bridge import voice_ready
 
@@ -65,6 +66,29 @@ def create_app(db_path: str | None = None, sim_speed: float | None = None) -> Fa
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Content-Type", "X-Dashboard-Token"],
     )
+
+    @app.middleware("http")
+    async def measure(request: Request, call_next):
+        t0 = time.perf_counter()
+        status = 500
+        try:
+            response = await call_next(request)
+            status = response.status_code
+            return response
+        finally:
+            route = request.scope.get("route")
+            path = getattr(route, "path", None) or "unmatched"   # the route template, never the raw URL
+            if path != "/metrics":
+                metrics.HTTP.labels(request.method, path, str(status)).inc()
+                metrics.HTTP_SECONDS.labels(path).observe(time.perf_counter() - t0)
+
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics_endpoint(req: Request):
+        # Scraped in-cluster. Anything that came through the public tunnel carries X-Forwarded-For.
+        if req.headers.get("x-forwarded-for"):
+            raise HTTPException(404)
+        body, ctype = metrics.render()
+        return Response(body, media_type=ctype)
 
     # ---------------------------------------------------------------- auth helpers
     def tool_auth(x_tool_secret: str = Header(default="")) -> None:
