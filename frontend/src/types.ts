@@ -43,6 +43,9 @@ export interface Call {
 }
 
 export interface PlanItem {
+  bank_id?: string
+  lat?: number | null
+  lng?: number | null
   bank_name: string
   units: number
   group: string

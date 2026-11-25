@@ -53,7 +53,16 @@ function build(t: number, base: number): RequestState {
       'Shortlisted 5 banks within 8 km.',
     ].map((say, i) => ({ seq: i + 1, request_id: 'DEMO', ts: base - 20 + i * 2, type: 'progress', payload: '{}', say })),
     plan: { needed: 3, confirmed, short_by: Math.max(0, 3 - confirmed), group: 'B+', component_label: 'packed red cells',
-      allocation: [], backups: [], leads: [], steps: ['Send the patient sample and requisition to the bank for crossmatch.'],
+      allocation: calls.filter((c) => c.status === 'completed' && c.confirmed_units > 0).map((c) => ({
+        bank_id: c.target_id, bank_name: c.target_name, units: c.confirmed_units, group: 'B+', exact_match: true,
+        distance_km: c.distance_km, eta_min: Math.round((c.distance_km ?? 0) * 3.2 + 4), hold_hours: 6, route: 'demo', mode: 'live', lat: c.lat, lng: c.lng })),
+      backups: status === 'resolved' ? [{ bank_name: BANKS[3].name, units: 4, group: 'B+', exact_match: true, distance_km: BANKS[3].km }] : [],
+      leads: [],
+      steps: [
+        'Send the patient sample and requisition to ' + BANKS[0].name + ' for crossmatch.',
+        'Ask each bank to hold the units until crossmatch completes; hold times are listed.',
+        'Final compatibility is decided only by the crossmatch at the issuing bank.',
+      ],
       late_vs_deadline: [], deadline_minutes_left: 180, portal_mismatches: [] },
   } as unknown as RequestState
 }

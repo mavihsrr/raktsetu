@@ -263,6 +263,9 @@ There are no floating cards. Status is grouped into **blocks** separated by seam
 ### Call rows and the board
 The live board's core list. A four-column row (20px state icon, name and meta, result, chevron) at 9px by 8px, hover fill, expandable to show the call transcript. Rows are ordered ringing, confirmed, queued, empty, failed, and glide (transform only) to their new place when a result lands. Ringing shows a blue dot with an expanding ring and a live `m:ss` timer; a newly confirmed call flashes a green wash that fades over 1.8s and its units turn green. Calls answered by the demo line carry a violet "demo line answered, not the bank" tag. The units figure counts up and the bar fills one segment at a time.
 
+### The plan
+When a request resolves, the plan replaces the gate: a status pill (Target met in green, Short by N in amber) and a Copy plan button; the demo-line warning when the demo phone answered for the banks; ranked cards (numbered circle, bank name and route badge, units and group, time away, hold time) each with a Directions link when the bank is located; then the next steps as a numbered list, backup stock, and unverified leads with tap-to-call numbers. Directions are never offered for a bank without coordinates.
+
 ### Bank radar
 A 300px SVG above the call list: the hospital at the centre, banks plotted by real distance (direction from lat/lng when known, otherwise spread evenly), a dashed ring at the search radius and 50% and 100% distance rings. Dots are blue while calling (pulsing), green confirmed, grey queued, red failed. Banks without a distance are counted in the caption, never placed.
 
@@ -280,6 +283,7 @@ A WebGL shader orb, always a perfect circle, about 300px, drawn on a transparent
 - **Do** use tabular figures for every count, time and countdown.
 - **Do** keep the orb the only glowing object, and let it respond to real audio levels through slow envelopes, never per-syllable flicker.
 - **Do** honour reduced motion: the orb stills and transitions collapse.
+- **Do** keep the voice usable from the keyboard: Space mutes, Esc ends the call.
 - **Do** keep controls at 34px (44px for the one large stage action, 56px for round voice controls).
 
 ### Don't:

@@ -91,6 +91,11 @@ cd frontend && npm run build                   # FastAPI then serves frontend/di
 
 The old single-file dashboard is still at `/legacy`.
 
+Tests: `cd frontend && npm test` (vitest). They cover the truthfulness rules: where calls ring (real / demo line /
+leads only), donors who declined, demo-line answers never presented as the bank's word, the plan always ending in
+the crossmatch rule, and directions never guessing a location. Keyboard: `Space` mutes, `Esc` ends the call, `[` and
+`]` collapse the sidebars.
+
 Dev-only demo modes (only with `npm run dev`; stripped from the production build): open `/#orbdemo` to cycle the
 orb through every voice state with synthetic audio, and `/#boarddemo` to watch a looping fake request run through
 the call board, radar and units counter without placing any calls. Reload the page after changing the hash.

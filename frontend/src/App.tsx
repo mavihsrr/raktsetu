@@ -46,7 +46,6 @@ export default function App() {
     setDetail(undefined)
     setSessionStart(linesLen.current)
     setPebbleKey((k) => k + 1) // the pebble drop: starting a session ripples out from the orb
-    setPebbleKey((k) => k + 1)
     const s = new VoiceSession({
       onState: (st, d) => { setVState(st); if (d) setDetail(d) },
       onLine: (l) => setLines((prev) => [...prev, l]),
@@ -66,6 +65,19 @@ export default function App() {
   }, [])
 
   inVoice.current = vstate !== 'idle' && vstate !== 'error'
+
+  // keyboard: Space mutes / unmutes, Esc ends the call. Ignored while typing or on a focused control (Space clicks it).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!inVoice.current || e.metaKey || e.ctrlKey || e.altKey) return
+      const t = e.target
+      const onControl = t instanceof Element && t.closest('input, textarea, select, button, a, [contenteditable]')
+      if (e.key === 'Escape') { e.preventDefault(); stop() }
+      else if ((e.key === ' ' || e.code === 'Space') && !onControl) { e.preventDefault(); toggleMute() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [stop, toggleMute])
   const events = useMemo(() => {
     const own = view?.events ?? []
     const seen = new Set(own.map((e) => e.seq))
