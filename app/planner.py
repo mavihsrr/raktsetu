@@ -8,31 +8,41 @@ Correctness rules enforced here:
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from .db import DB
 from .geo import eta_minutes, haversine_km
 from .medical import COMPONENTS, InputError, compatible_groups, donor_eligibility, spoken_group
 
 
-def rank_banks(db: DB, place: dict, group: str, component: str, max_km: float,
+STALE_DAYS = 7
+
+
+def rank_banks(db: DB, place: dict, group: str, component: str, near_km: float, districts: list[str],
                exclude_ids: set[str] | frozenset = frozenset()) -> list[dict]:
-    """Real banks within max_km: those whose live portal stock lists a compatible unit first, then nearest."""
+    """Real banks in the request's districts. Order: within near_km first, then banks listing compatible
+    stock, then nearest. Banks we could not locate are kept (distance None) after located ones."""
     groups = compatible_groups(group, component)
+    qs = ",".join("?" for _ in districts) or "''"
     out = []
-    for b in db.q("SELECT * FROM banks WHERE lat IS NOT NULL"):
+    for b in db.q(f"SELECT * FROM banks WHERE district IN ({qs})", tuple(districts)):
         if b["id"] in exclude_ids:
             continue
-        km = haversine_km(place["lat"], place["lng"], b["lat"], b["lng"])
-        if km > max_km:
-            continue
+        km = haversine_km(place["lat"], place["lng"], b["lat"], b["lng"]) if b["lat"] is not None else None
         portal_comp = (b["portal"] or {}).get(component, {})
         out.append({
-            "bank": b, "distance_km": round(km, 1), "eta_min": eta_minutes(km),
+            "bank": b, "distance_km": round(km, 1) if km is not None else None, "eta_min": eta_minutes(km),
             "portal_exact": int(portal_comp.get(group, 0)),
             "portal_compatible": int(sum(portal_comp.get(g, 0) for g in groups)),
         })
-    out.sort(key=lambda x: (x["portal_compatible"] == 0, x["distance_km"]))
+    # Stock last updated more than a week ago is too stale to rank on.
+    cutoff = (datetime.now() - timedelta(days=STALE_DAYS)).isoformat()
+    for x in out:
+        upd = x["bank"].get("portal_updated_at")
+        x["portal_stale"] = bool(upd and upd < cutoff)
+    out.sort(key=lambda x: (x["distance_km"] is None or x["distance_km"] > near_km,
+                            x["portal_compatible"] == 0 or x["portal_stale"],
+                            x["distance_km"] is None, x["distance_km"] or 0))
     return out
 
 
@@ -86,11 +96,12 @@ def build_plan(request: dict, hospital: dict, calls: list[dict], now: float) -> 
             "exact_match": g == group, "distance_km": km, "eta_min": eta_minutes(km),
             "hold_hours": c["hold_hours"], "mode": c["mode"], "route": c.get("route"),
         })
-    allocation.sort(key=lambda a: a["eta_min"])
+    allocation.sort(key=lambda a: (a["eta_min"] is None, a["eta_min"] or 0))
     got = need - max(remaining, 0)
 
     deadline_min = (request["deadline_at"] - now) / 60 if request["deadline_at"] else None
-    late = [a for a in allocation if deadline_min is not None and a["eta_min"] > deadline_min]
+    late = [a for a in allocation if deadline_min is not None and a["eta_min"] is not None
+            and a["eta_min"] > deadline_min]
 
     donors = [{"donor_id": c["target_id"], "name": c["target_name"], "willing": c["willing"],
                "notes": c["notes"], "distance_km": c["distance_km"], "mode": c["mode"]}
@@ -108,7 +119,7 @@ def build_plan(request: dict, hospital: dict, calls: list[dict], now: float) -> 
     if allocation:
         first = allocation[0]
         steps.append(f"Send the patient's blood sample and signed requisition to {first['bank_name']} "
-                     f"for crossmatch now (approx {first['eta_min']} min away).")
+                     f"for crossmatch now" + (f" (approx {first['eta_min']} min away)." if first["eta_min"] else "."))
         if len(allocation) > 1:
             others = ", ".join(a["bank_name"] for a in allocation[1:])
             steps.append(f"Also send sample + requisition to {others}; each bank crossmatches before issue.")
@@ -123,7 +134,7 @@ def build_plan(request: dict, hospital: dict, calls: list[dict], now: float) -> 
         steps.append(f"Still short by {need - got} unit(s): escalate to the regional blood transfusion officer and keep calling.")
     if leads and got < need:
         steps.append("Unverified portal leads (not phoned by RaktSetu): " + "; ".join(
-            f"{l['bank_name']} ({l['distance_km']} km, portal {l['portal']}, phone {l['phone'] or 'n/a'})" for l in leads) + ".")
+            f"{l['bank_name']} ({str(l['distance_km']) + ' km, ' if l['distance_km'] is not None else ''}portal {l['portal']}, phone {l['phone'] or 'n/a'})" for l in leads) + ".")
     if donors:
         steps.append("Willing donors replace/restock bank stock; their blood is screened first and is NOT counted for this patient.")
 
@@ -148,8 +159,8 @@ def plan_say(plan: dict) -> str:
     first = plan["allocation"][0]
     head = (f"{plan['confirmed']} of {plan['needed']} units confirmed." if plan["short_by"] == 0
             else f"Only {plan['confirmed']} of {plan['needed']} units confirmed.")
-    parts = [head, f"Nearest is {first['bank_name']}, about {first['eta_min']} minutes. "
-             f"Send the patient's sample and requisition there for crossmatch."]
+    parts = [head, f"Nearest is {first['bank_name']}" + (f", about {first['eta_min']} minutes" if first["eta_min"] else "")
+             + ". Send the patient's sample and requisition there for crossmatch."]
     if len(plan["allocation"]) > 1:
         parts.append("Other units: " + "; ".join(
             f"{a['bank_name']} {a['units']}" + ("" if a["exact_match"] else f" ({spoken_group(a['group'])}, compatible)")

@@ -196,7 +196,7 @@ async function render(){
     const mm = c.target_type==="bank" && c.status==="completed" && c.portal_units!==c.confirmed_units ? ` <span class="mismatch">portal ${c.portal_units} ≠ phone ${c.confirmed_units}</span>` : "";
     return `<tr class="click" data-call="${c.id}">
       <td>${c.status==="dialing"?'<span class="dot"></span>':""}${esc(c.target_name)}</td>
-      <td class="num">${c.distance_km} km</td><td>W${c.wave}</td>
+      <td class="num">${c.distance_km??"?"} km</td><td>W${c.wave}</td>
       <td>${badge(c)}</td>
       <td class="cs ${c.status}">${c.status.replace("_"," ")}</td>
       ${c.target_type==="bank"?`<td class="num">${c.portal_units ?? "–"}</td>`:""}
@@ -222,9 +222,9 @@ async function render(){
       ${p.late_vs_deadline.length?`<p class="mismatch">May miss deadline: ${p.late_vs_deadline.map(esc).join(", ")}</p>`:""}</div>`:""}
     <div class="panel"><h2>Bank calls ${["calling"].includes(r.status)?`<button class="btn" id="cancel" style="float:right;padding:3px 9px">Cancel request</button>`:""}</h2>
       ${banks.length?`<div class="tablewrap"><table><tr><th>Bank</th><th>Dist</th><th>Wave</th><th></th><th>Status</th><th>Portal</th><th>Phone-confirmed</th><th>Hold / note</th></tr>${banks.map(row).join("")}</table></div>`
-      : (leads?.payload?.shortlist ? `<div class="meta">Live from e-RaktKosh: ${leads.payload.banks_in_radius} banks within ${leads.payload.bank_radius_km} km of ${esc(leads.payload.location)}, ${leads.payload.banks_with_stock} listing compatible stock. Shortlist to phone:</div>
+      : (leads?.payload?.shortlist ? `<div class="meta">Live from e-RaktKosh: ${leads.payload.banks_in_district} banks in ${esc(leads.payload.district)} district (${leads.payload.banks_in_radius} within ${leads.payload.bank_radius_km} km of ${esc(leads.payload.location)}), ${leads.payload.banks_with_stock} listing compatible stock. Shortlist to phone:</div>
         <div class="tablewrap"><table><tr><th>Bank</th><th>Dist</th><th>Portal (compatible)</th><th>Phone</th><th>Portal updated</th></tr>
-        ${leads.payload.shortlist.map(b=>`<tr><td><b>${esc(b.name)}</b><br><small>${esc(b.address||"")}</small></td><td>${b.distance_km} km</td><td>${b.portal_units}</td><td>${esc(b.phone||"n/a")}</td><td>${esc((b.portal_updated_at||"").replace("T"," "))}</td></tr>`).join("")}</table></div>`
+        ${leads.payload.shortlist.map(b=>`<tr><td><b>${esc(b.name)}</b><br><small>${esc(b.address||"")}</small></td><td>${b.distance_km??"?"} km</td><td>${b.portal_units}</td><td>${esc(b.phone||"n/a")}</td><td>${esc((b.portal_updated_at||"").replace("T"," "))}</td></tr>`).join("")}</table></div>`
         : `<div class="meta">No calls yet.</div>`)}
     </div>
     <div class="grid2">

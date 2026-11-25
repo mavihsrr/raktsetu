@@ -25,7 +25,8 @@ from .dialer import CallResult, SarvamDialer, SimulatedDialer, parse_sarvam_webh
 from .flags import flags
 from .medical import COMPONENTS, InputError, compatible_groups, parse_blood_group, parse_component, spoken_group
 from .eraktkosh import PortalError, fetch_banks
-from .geocode import geocode_place, load_locations
+from .eraktkosh import resolve
+from .geocode import FAST_TERMS, MORE_TERMS, foreground, geocode_place, locate_banks
 from .planner import build_plan, eligible_donors, plan_say, rank_banks
 
 log = logging.getLogger("raktsetu.coordinator")
@@ -42,13 +43,14 @@ def _rid() -> str:
 
 
 def _e164(phone: str | None) -> str | None:
-    """e-RaktKosh numbers are bare digits: mobiles (10), Bengaluru landlines (080 + 8, or 8 local)."""
+    """e-RaktKosh numbers are bare digits: 10-digit mobiles/landlines with STD code, maybe a leading 0 or 91.
+    Anything else (e.g. a local number without STD code) is not dialled."""
     d = re.sub(r"\D", "", phone or "")
-    if len(d) == 8:
-        d = "80" + d
-    if len(d) >= 10:
-        return "+91" + d[-10:]
-    return None
+    if len(d) == 11 and d.startswith("0"):
+        d = d[1:]
+    elif len(d) == 12 and d.startswith("91"):
+        d = d[2:]
+    return "+91" + d if len(d) == 10 else None
 
 
 class Coordinator:
@@ -140,27 +142,44 @@ class Coordinator:
             if hours <= 0:
                 raise InputError("The deadline must be in the future.")
         if not location or not str(location).strip():
-            raise InputError("Where is the patient? Tell me the hospital or area in Bengaluru.")
+            raise InputError("Where is the patient? Tell me the hospital and town or city.")
         location = str(location).strip()
-        # Live, every request: geocode the patient's location + fetch every bank with stock from e-RaktKosh.
-        place_res, live_res = await asyncio.gather(geocode_place(location), fetch_banks(comp),
-                                                   return_exceptions=True)
-        if isinstance(live_res, PortalError):
-            raise InputError("The national blood bank portal, e-RaktKosh, isn't responding right now. Try again in a minute.")
-        if isinstance(live_res, Exception):
-            raise live_res
-        if isinstance(place_res, Exception) or not place_res:
-            raise InputError(f"I couldn't find '{location}' on the map in Bengaluru. Which hospital or area is it?")
-        hospital = self._save_place(location, place_res)
-        unlocated = self._save_banks(comp, live_res)
+        # Live, every request: place -> state/district -> that district's banks + stock from e-RaktKosh.
+        # The voice tool times out at 15 s, so everything here works to an ~11 s deadline.
+        t0 = time.monotonic()
+        with foreground():
+            place = await geocode_place(location)
+            if not place:
+                raise InputError(f"I couldn't find '{location}' on the map. Which hospital and town or city is it?")
+            try:
+                where = await resolve(place["state"], place["districts"])
+                if not where:
+                    raise InputError(f"I found {location} in {place['state'] or 'India'}, but couldn't match its "
+                                     "district on the national blood bank portal. Which district is it in?")
+                state_code, district_label, dcodes = where
+                live = await fetch_banks(comp, state_code, dcodes)
+            except PortalError:
+                raise InputError("The national blood bank portal, e-RaktKosh, isn't responding right now. "
+                                 "Try again in a minute.")
+            # Locate the likeliest banks now; keep going in the background while the user hears the
+            # answer, so start_calls ranks on more real distances.
+            budget = min(4.5, 11.0 - (time.monotonic() - t0))
+            if budget > 0.8:
+                await locate_banks(live, place, FAST_TERMS, per_bank=False, budget_s=budget)
+        unlocated = sum(1 for b in live if "lat" not in b)
+        hospital = self._save_place(location, (place["lat"], place["lng"], place["label"]))
+        self._save_banks(comp, live)
+        self._spawn(self._locate_more(live, place))
+        districts = [f"{state_code}:{d}" for d in dcodes]
 
         snap = flags.snapshot()["values"]
         r1 = float(snap["bank_radius_km"])
         r2 = round(r1 * float(snap["wave2_radius_multiplier"]), 1)
         rd = float(snap["donor_radius_km"])
         top_n = int(snap["max_banks_per_wave"])
-        ring = rank_banks(self.db, hospital, group, comp, r1)
+        ring = rank_banks(self.db, hospital, group, comp, r1, districts)
         shortlist = ring[:top_n]
+        near = [b for b in ring if b["distance_km"] is not None and b["distance_km"] <= r1]
         donors, excluded = eligible_donors(self.db, hospital, group, rd)
         now = time.time()
         rid = _rid()
@@ -169,21 +188,30 @@ class Coordinator:
             "blood_group": group, "component": comp, "units": n,
             "deadline_at": now + hours * 3600 if hours else None, "status": "planned", "wave": 0,
             "bank_radius_km": r1, "wave2_radius_km": r2, "donor_radius_km": rd, "requested_by": requested_by,
+            "districts": ",".join(districts), "area_label": district_label,
         })
-        with_stock = [b for b in ring if b["portal_compatible"] > 0]
+        with_stock = [b for b in ring if b["portal_compatible"] > 0 and not b["portal_stale"]]
         portal_total = sum(b["portal_compatible"] for b in ring)
         label = COMPONENTS[comp]
         say = (f"Request for {n} unit{'s' if n != 1 else ''} of {spoken_group(group)} {label} near {location}"
+               + (f", {district_label} district" if district_label.lower() not in location.lower() else "")
                + (f", needed within {hours:g} hours" if hours else "") + ". ")
         if assumed:
             say += "I've assumed packed red cells; tell me if you need whole blood or platelets. "
+        if place["approx"]:
+            say += f"I couldn't pin the exact place, so I'm measuring from the centre of {place['city'] or district_label}. "
         if ring:
-            say += (f"The national portal, e-RaktKosh, lists {len(ring)} blood banks within {r1:g} km; "
-                    f"{len(with_stock)} show compatible stock, {portal_total} units in all. ")
+            scope = (f"within {r1:g} km" if len(near) >= len(shortlist) else f"in {district_label} district")
+            pool = near if scope.startswith("within") else ring
+            say += (f"The national portal, e-RaktKosh, lists {len(pool)} blood bank{'s' if len(pool) != 1 else ''} {scope}; "
+                    f"{sum(1 for b in pool if b['portal_compatible'] > 0)} show compatible stock, "
+                    f"{sum(b['portal_compatible'] for b in pool)} units in all. ")
             if with_stock:
                 b0 = with_stock[0]
-                say += (f"Nearest with stock is {b0['bank']['name']}, {b0['distance_km']:g} km away, "
-                        f"showing {b0['portal_compatible']}. ")
+                d = b0["distance_km"]
+                say += (f"Nearest with recently updated stock is {b0['bank']['name']}"
+                        + ("" if d is None else ", right there" if d < 0.5 else f", {d:g} km away")
+                        + f", showing {b0['portal_compatible']}. ")
             route = self._routing(snap)
             k = len(shortlist)
             say += f"Portal stock can be out of date, so I'll phone the top {k} to confirm. "
@@ -192,16 +220,18 @@ class Coordinator:
             elif route == "none":
                 say += "Live calling is off right now, so I'll list them as leads without phoning. "
         else:
-            say += f"e-RaktKosh shows no blood banks within {r1:g} km; I can widen to {r2:g} km. "
+            say += f"e-RaktKosh lists no blood banks with this component in {district_label} district right now. "
         if donors:
             say += (f"I also found {len(donors)} eligible donor{'s' if len(donors) != 1 else ''} who opted in to recall; "
                     "I'd ask them to restock, but donor blood is screened first and doesn't count for this patient. ")
         say += "Shall I start calling now?"
         payload = {
-            "location": location, "located_as": place_res[2], "lat": hospital["lat"], "lng": hospital["lng"],
+            "location": location, "located_as": place["label"], "approx_location": place["approx"],
+            "state": place["state"], "district": district_label, "lat": hospital["lat"], "lng": hospital["lng"],
             "blood_group": group, "component": comp, "component_assumed": assumed,
             "units": n, "deadline_hours": hours, "bank_radius_km": r1, "source": "e-RaktKosh (live)",
-            "banks_in_radius": len(ring), "banks_with_stock": len(with_stock), "banks_not_located": unlocated,
+            "banks_in_district": len(ring), "banks_in_radius": len(near), "banks_with_stock": len(with_stock),
+            "banks_not_located": unlocated,
             "shortlist": [self._bank_view(b) for b in shortlist],
             "other_banks": [self._bank_view(b) for b in ring[top_n:top_n + 10]],
             "donors_eligible": [{"id": d["donor"]["id"], "name": d["donor"]["name"], "distance_km": d["distance_km"]}
@@ -218,7 +248,8 @@ class Coordinator:
         bk = b["bank"]
         return {"id": bk["id"], "name": bk["name"], "address": bk["area"], "phone": bk["phone"],
                 "distance_km": b["distance_km"], "portal_units": b["portal_compatible"],
-                "portal_exact": b["portal_exact"], "portal_updated_at": bk.get("portal_updated_at")}
+                "portal_exact": b["portal_exact"], "portal_updated_at": bk.get("portal_updated_at"),
+                "portal_stale": b.get("portal_stale", False)}
 
     def _save_place(self, text: str, hit: tuple[float, float, str]) -> dict:
         lat, lng, label = hit
@@ -229,31 +260,35 @@ class Coordinator:
         return self.db.one("SELECT * FROM hospitals WHERE id=?", (pid,))
 
     def _save_banks(self, comp: str, live: list[dict]) -> int:
-        """Upsert this fetch into `banks` (live stock for `comp`). Returns how many have no known location."""
-        locs = load_locations()
-        seen, unlocated = set(), 0
+        """Upsert this live fetch into `banks` (stock for `comp`; lat/lng set by locate_banks)."""
+        seen, districts = set(), {b["district"] for b in live}
         with self.db.lock:
             for b in live:
-                loc = locs.get(b["id"])
-                if not loc:
-                    unlocated += 1
                 old = self.db.one("SELECT portal FROM banks WHERE id=?", (b["id"],))
                 portal = (old or {}).get("portal") or {}
                 portal[comp] = b["stock"]
                 self.db.conn.execute(
                     "INSERT OR REPLACE INTO banks (id, name, area, lat, lng, phone, portal, portal_updated_days_ago,"
                     " sim, portal_updated_at, email, district) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (b["id"], b["name"], b["address"], loc and loc["lat"], loc and loc["lng"],
+                    (b["id"], b["name"], b["address"], b.get("lat"), b.get("lng"),
                      ",".join(b["phones"]) or None, json.dumps(portal), None, None,
                      b["portal_updated_at"], b["email"], b["district"]))
                 seen.add(b["id"])
-            # banks not in this fetch list no stock for this component right now
-            for row in self.db.q("SELECT id, portal FROM banks"):
+            # banks of these districts missing from this fetch list no stock for this component right now
+            qs = ",".join("?" for _ in districts) or "''"
+            for row in self.db.q(f"SELECT id, portal FROM banks WHERE district IN ({qs})", tuple(districts)):
                 if row["id"] not in seen and (row["portal"] or {}).get(comp):
                     p = row["portal"]
                     p[comp] = {}
                     self.db.update("banks", row["id"], portal=p)
-        return unlocated
+
+    async def _locate_more(self, live: list[dict], place: dict) -> None:
+        def save(b: dict) -> None:
+            self.db.conn.execute("UPDATE banks SET lat=?, lng=? WHERE id=?", (b["lat"], b["lng"], b["id"]))
+        try:
+            await locate_banks(live, place, MORE_TERMS, per_bank=True, budget_s=60.0, on_hit=save)
+        except Exception:
+            log.exception("background bank locating failed")
 
     def _routing(self, snap: dict) -> str:
         """real: dial the bank's own number; demo: our demo line stands in; none: list as leads only."""
@@ -292,7 +327,8 @@ class Coordinator:
     def _shortlist(self, r: dict, hospital: dict, max_km: float) -> list[dict]:
         called = {c["target_id"] for c in self.calls(r["id"]) if c["target_type"] == "bank"}
         n = int(flags.get("max_banks_per_wave"))
-        return rank_banks(self.db, hospital, r["blood_group"], r["component"], max_km, called)[:n]
+        districts = (r.get("districts") or "").split(",")
+        return rank_banks(self.db, hospital, r["blood_group"], r["component"], max_km, districts, called)[:n]
 
     def _queue_banks(self, r: dict, banks: list[dict], wave: int) -> tuple[int, int]:
         """Route each shortlisted bank. Returns (calls queued, of which to the demo line)."""
@@ -321,18 +357,21 @@ class Coordinator:
 
     @staticmethod
     def _calling_say(banks: list[dict], dialled: int, demo: int, donors: int) -> str:
-        leads = len(banks) - dialled
+        def where(b: dict) -> str:
+            d = b["distance_km"]
+            return b["bank"]["name"] + ("" if d is None else f", {d:g} km")
+        leads = banks[dialled:]
         if dialled == 0 and not donors:
-            return (f"I haven't phoned anyone: live calling is off. The {len(banks)} nearest banks with stock "
-                    "are listed as leads in the plan, with their numbers.")
+            return ("I haven't phoned anyone: live calling is off. These banks are leads with their numbers in the plan: "
+                    + "; ".join(where(b) for b in banks) + ".")
         bits = []
         if dialled:
-            bits.append(f"{dialled} bank{'s' if dialled != 1 else ''}" + (" through the demo line" if demo else ""))
+            bits.append("; ".join(where(b) for b in banks[:dialled]) + (" through the demo line" if demo else ""))
         if donors:
             bits.append(f"{donors} donor{'s' if donors != 1 else ''}")
-        say = "Calling " + " and ".join(bits) + " now. I'll update you as they answer."
+        say = "Calling " + ", and ".join(bits) + " now. I'll update you as they answer."
         if leads:
-            say += f" {leads} more bank{'s' if leads != 1 else ''} are listed as leads with their numbers, not phoned."
+            say += (f" Also worth phoning yourself, not called by me: " + "; ".join(where(b) for b in leads) + ".")
         return say
 
     def _queue(self, request_id: str, ttype: str, target: dict, wave: int, km: float, portal: int | None,
@@ -360,7 +399,7 @@ class Coordinator:
         banks = self._shortlist(r, hospital, r["wave2_radius_km"])
         dialled, demo = self._queue_banks(r, banks, wave=2)
         self.db.update("requests", r["id"], status="calling", wave=2, updated_at=time.time())
-        say = (f"Widening to {r['wave2_radius_km']:g} km" + (" on autopilot" if approved_by == "autopilot" else "")
+        say = ("Widening the search" + (" on autopilot" if approved_by == "autopilot" else "")
                + ". " + self._calling_say(banks, dialled, demo, 0))
         await self.emit(r["id"], "wave2_started", {"banks": len(banks), "approved_by": approved_by}, say)
         self._start_driver(r["id"])
@@ -662,8 +701,8 @@ class Coordinator:
                 await self.emit(request_id, "approval_needed",
                                 {"confirmed": confirmed, "needed": r["units"], "more_banks": len(more),
                                  "radius_km": r["wave2_radius_km"]},
-                                f"{confirmed} of {r['units']} confirmed within {r['bank_radius_km']:g} km. "
-                                f"Shall I try the next {len(more)} nearest banks, out to {r['wave2_radius_km']:g} km?")
+                                f"{confirmed} of {r['units']} confirmed so far. "
+                                f"Shall I phone the next {len(more)} nearest bank{'s' if len(more) != 1 else ''}?")
                 return
         await self._finish(r, "unresolved")
 

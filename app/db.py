@@ -65,7 +65,8 @@ class DB:
             self.conn.executescript(SCHEMA)
             for table, col in (("banks", "portal_updated_at TEXT"), ("banks", "email TEXT"),
                                ("banks", "district TEXT"), ("calls", "phone TEXT"),
-                               ("calls", "dial_to TEXT"), ("calls", "route TEXT")):
+                               ("calls", "dial_to TEXT"), ("calls", "route TEXT"),
+                               ("requests", "districts TEXT"), ("requests", "area_label TEXT")):
                 have = {r[1] for r in self.conn.execute(f"PRAGMA table_info({table})")}
                 if col.split()[0] not in have:
                     self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col}")

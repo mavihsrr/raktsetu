@@ -16,6 +16,8 @@ def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return 2 * r * math.asin(math.sqrt(a))
 
 
-def eta_minutes(km: float) -> int:
-    """One-way approximate drive time from the bank to the hospital, plus handling."""
+def eta_minutes(km: float | None) -> int | None:
+    """One-way approximate drive time from the bank to the hospital, plus handling. None if unknown."""
+    if km is None:
+        return None
     return int(round(km * ROAD_FACTOR / CITY_KMPH * 60 + HANDLING_MIN))
