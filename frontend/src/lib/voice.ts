@@ -90,8 +90,10 @@ export class VoiceSession {
     worklet.connect(sink).connect(ctx.destination) // keeps the worklet pulled, silently
     const silence = new ArrayBuffer(640) // 20 ms of 16 kHz PCM16
     worklet.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-      if (this.ws?.readyState !== WebSocket.OPEN) return
-      this.ws.send(this.muted || this.gated() ? silence : e.data)
+      const ws = this.ws
+      if (ws?.readyState !== WebSocket.OPEN) return
+      if (this.muted || this.gated()) { this.resetBridge(); ws.send(silence); return }
+      for (const f of this.bridge(e.data)) ws.send(f)
     }
 
     this.outGain = ctx.createGain()
@@ -158,13 +160,60 @@ export class VoiceSession {
    */
   private gated(): boolean {
     if (Date.now() > this.agentSpeakingUntil) { this.loudFrames = 0; return false }
-    this.loudFrames = this.rms(this.micAnalyser) > 0.28 ? this.loudFrames + 1 : 0
-    if (this.loudFrames >= 3) { // ~60 ms of real speech: barge-in
+    this.loudFrames = this.rms(this.micAnalyser) > 0.18 ? this.loudFrames + 1 : 0
+    if (this.loudFrames >= 4) { // ~80 ms of normal speech: barge-in
       this.agentSpeakingUntil = 0
       this.stopPlayback()
       return false
     }
     return true
+  }
+
+  /**
+   * Pause bridge. The agent ends your turn after a short silence, so a breath mid-sentence
+   * ("B positive, two units... at KIMS Hubli") made it reply over you. While you are talking,
+   * the first 120 ms of a pause is sent as-is and the rest is held back. If you carry on within
+   * ~0.8 s the held silence is dropped, so the agent never sees a long gap. If you don't, it is
+   * all sent at once and the agent replies.
+   */
+  private talking = false
+  private voiced = 0
+  private gap = 0
+  private held: ArrayBuffer[] = []
+  private floorDb = -60
+
+  private resetBridge() {
+    this.talking = false
+    this.voiced = 0
+    this.gap = 0
+    this.held = []
+  }
+
+  private bridge(frame: ArrayBuffer): ArrayBuffer[] {
+    const KEEP = 6      // 120 ms of each pause passes through
+    const END = 40      // 800 ms of silence = you have finished
+    const pcm = new Int16Array(frame)
+    let sum = 0
+    for (let i = 0; i < pcm.length; i++) sum += pcm[i] * pcm[i]
+    const db = 20 * Math.log10(Math.sqrt(sum / pcm.length) / 0x8000 + 1e-9)
+    const speech = db > -45 && db > this.floorDb + 9
+    if (!speech) this.floorDb += (db - this.floorDb) * (db < this.floorDb ? 0.3 : 0.02) // track room noise
+
+    if (speech) {
+      this.voiced++
+      if (this.voiced >= 3) this.talking = true
+      this.gap = 0
+      this.held = []   // you carried on: the pause is dropped
+      return [frame]
+    }
+    this.voiced = 0
+    if (!this.talking) return [frame]
+    this.gap++
+    if (this.gap <= KEEP) return [frame]
+    if (this.gap < END) { this.held.push(frame); return [] }
+    const out = [...this.held, frame]   // a real end of turn: release the silence now
+    this.resetBridge()
+    return out
   }
 
   private onJson(raw: string) {
@@ -207,14 +256,19 @@ export class VoiceSession {
     const at = Math.max(ctx.currentTime + 0.04, this.playHead)
     node.start(at)
     this.playHead = at + buffer.duration
-    // short tail only: covers output latency, so your reply right after the agent is not cut off
-    this.agentSpeakingUntil = Date.now() + (this.playHead - ctx.currentTime) * 1000 + 120
     this.sources.add(node)
-    if (this.state !== 'speaking') this.set('speaking')
     node.onended = () => {
       this.sources.delete(node)
       if (this.sources.size === 0 && this.state === 'speaking') this.set('listening')
     }
+    // Only real speech counts as the agent talking. Quiet filler (background ambience measured at
+    // -37..-42 dBFS, speech at about -13) must never close your mic, or the agent hears you in pieces.
+    let sq = 0
+    for (let i = 0; i < ch.length; i++) sq += ch[i] * ch[i]
+    if (Math.sqrt(sq / Math.max(1, ch.length)) < 0.025) return   // below ~-32 dBFS
+    // short tail only: covers output latency, so your reply right after the agent is not cut off
+    this.agentSpeakingUntil = Date.now() + (this.playHead - ctx.currentTime) * 1000 + 120
+    if (this.state !== 'speaking') this.set('speaking')
   }
 
   private stopPlayback() {
