@@ -73,10 +73,11 @@ export function useLive(follow: () => boolean = () => false) {
       if (pending) return
       pending = setTimeout(() => { pending = null; refresh() }, 150)
     }
-    const es = new EventSource(streamUrl())
-    es.onopen = () => setHealth('live')
-    es.onerror = () => setHealth('reconnecting')
-    es.addEventListener('update', (ev) => {
+    let es: EventSource
+    let retry: ReturnType<typeof setTimeout> | null = null
+    let attempt = 0
+    let stopped = false
+    const onUpdate = (ev: Event) => {
       const e = JSON.parse((ev as MessageEvent).data) as BackendEvent
       if (e.type === 'progress' && e.say && !doneRids.current.has(e.request_id)
           && !listRef.current.some((r) => r.id === e.request_id)) {
@@ -91,8 +92,28 @@ export function useLive(follow: () => boolean = () => false) {
         if (followRef.current()) setSelected(e.request_id)
       }
       schedule()
-    })
-    return () => { es.close(); if (pending) clearTimeout(pending) }
+    }
+    // EventSource retries transient drops itself, but gives up for good after a non-200 (a rollout, a proxy
+    // blip). Reopen it with backoff, and refetch once it's back so nothing missed stays missing.
+    const connect = () => {
+      es = new EventSource(streamUrl())
+      es.onopen = () => {
+        const wasDown = attempt > 0
+        attempt = 0
+        setHealth('live')
+        if (wasDown) refresh()
+      }
+      es.onerror = () => {
+        setHealth('reconnecting')
+        if (es.readyState === EventSource.CLOSED && !stopped) {
+          attempt += 1
+          retry = setTimeout(connect, Math.min(1000 * 2 ** (attempt - 1), 15000))
+        }
+      }
+      es.addEventListener('update', onUpdate)
+    }
+    connect()
+    return () => { stopped = true; if (retry) clearTimeout(retry); es.close(); if (pending) clearTimeout(pending) }
   }, [loadList, refresh])
 
   // belt and braces while calls are in flight (SSE can lag behind a proxy)

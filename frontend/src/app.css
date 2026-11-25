@@ -478,3 +478,37 @@ input, select { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 2
 .bank-dist { color: var(--muted); }
 .bank-stock { font-weight: 600; color: var(--green); }
 .bank-stock.is-zero { color: var(--faint); }
+
+/* ================================================================ phase 2: call board */
+.board .calls { position: relative; }
+.calls > li { animation: row-in 0.42s var(--ease-out) both; }
+@keyframes row-in { from { opacity: 0; transform: translateX(14px); } }
+.call.is-dialing .call-main { background: linear-gradient(90deg, rgba(124, 180, 255, 0.09), transparent 70%); }
+.ring-timer { font-weight: 600; letter-spacing: 0.02em; }
+.call.is-confirmed { animation: confirm 1.8s var(--ease-out), row-in 0.42s var(--ease-out) both; }
+.segments i { transition: background 0.4s var(--ease-out), box-shadow 0.4s var(--ease-out); }
+.units-big { display: inline-flex; align-items: baseline; }
+
+/* bank radar */
+.radar { margin: 0 0 12px; display: grid; gap: 6px; justify-items: center; }
+.radar svg { width: min(100%, 300px); height: auto; overflow: visible; }
+.radar-ring { fill: none; stroke: rgba(255, 255, 255, 0.07); stroke-width: 1; }
+.radar-search { fill: rgba(124, 156, 255, 0.04); stroke: rgba(124, 156, 255, 0.35); stroke-width: 1; stroke-dasharray: 3 4; }
+.radar-km { fill: var(--faint); font-size: 8px; font-variant-numeric: tabular-nums; }
+.radar-home { fill: var(--text); stroke: rgba(255, 255, 255, 0.25); stroke-width: 4; }
+.radar-dot circle { transition: fill 0.4s var(--ease-out); }
+.radar-dot .is-lead { fill-opacity: 0.55; }
+.radar-ping { fill: none; stroke-width: 1.5; transform-box: fill-box; transform-origin: center; animation: radar-ping 1.6s var(--ease-out) infinite; }
+@keyframes radar-ping { from { transform: scale(0.6); opacity: 1; } to { transform: scale(2.1); opacity: 0; } }
+.radar-cap { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; font-size: 11.5px; color: var(--muted); }
+.dotk { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+
+/* folded search steps in the conversation */
+.clamp1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; margin: 2px 0 0; }
+.evt-steps-head { margin: 0; color: var(--text); font-size: 12.5px; }
+.evt-steps-list { margin: 6px 0 0; padding-left: 16px; display: grid; gap: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .calls > li, .call.is-confirmed { animation: none; }
+  .radar-ping { animation: none; opacity: 0.5; }
+}

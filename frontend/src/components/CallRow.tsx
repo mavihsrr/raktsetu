@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Check, ChevronDown, Clock, Minus, PhoneOff, SkipForward } from 'lucide-react'
 import type { Call } from '../types'
-import { RouteBadge, km } from './bits'
+import { RouteBadge, km, useNow } from './bits'
 
 function StatusIcon({ c }: { c: Call }) {
   if (c.status === 'dialing') return <span className="dialing" role="img" aria-label="Dialing" />
@@ -20,6 +20,14 @@ const STATUS_TEXT: Record<string, string> = {
 }
 
 const WILLING: Record<string, string> = { yes: 'Will donate (restock)', later: 'Maybe later', no: 'Declined' }
+
+/** m:ss since the call was placed, ticking while the phone rings. */
+function RingTimer({ since }: { since?: number | null }) {
+  const now = useNow(1000)
+  if (!since) return <span className="ring-timer num">calling…</span>
+  const s = Math.max(0, Math.round(now / 1000 - since))
+  return <span className="ring-timer num" aria-label={`ringing for ${s} seconds`}>{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span>
+}
 
 export function CallRow({ c, stale = false }: { c: Call; stale?: boolean }) {
   const [open, setOpen] = useState(false)
@@ -44,11 +52,13 @@ export function CallRow({ c, stale = false }: { c: Call; stale?: boolean }) {
   } else if (c.route === 'lead') {
     result = <span className="units-text">Call yourself</span>
   } else {
-    result = <span className={`units-text st-${c.status}`}>{STATUS_TEXT[c.status] ?? c.status}</span>
+    result = c.status === 'dialing'
+      ? <span className="units-text st-dialing"><RingTimer since={c.started_at} /></span>
+      : <span className={`units-text st-${c.status}`}>{STATUS_TEXT[c.status] ?? c.status}</span>
   }
 
   return (
-    <li className={`call ${c.status === 'dialing' ? 'is-dialing' : ''} ${done && bank && c.confirmed_units > 0 ? 'is-confirmed' : ''}`}>
+    <li data-flip={c.id} className={`call ${c.status === 'dialing' ? 'is-dialing' : ''} ${done && bank && c.confirmed_units > 0 ? 'is-confirmed' : ''}`}>
       <button className="call-main" onClick={() => hasDetail && setOpen(!open)} aria-expanded={hasDetail ? open : undefined} disabled={!hasDetail}>
         <span className="call-icon"><StatusIcon c={c} /></span>
         <span className="call-body">

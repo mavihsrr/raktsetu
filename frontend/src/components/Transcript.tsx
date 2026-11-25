@@ -8,6 +8,7 @@ import { CollapseButton, Rail } from './Rail'
 type Item =
   | { kind: 'voice'; id: string; ts: number; role: 'user' | 'agent'; text: string }
   | { kind: 'event'; id: string; ts: number; type: string; text: string }
+  | { kind: 'steps'; id: string; ts: number; steps: { id: string; ts: number; text: string }[] }
 
 const EVENT_ICON: Record<string, typeof Info> = {
   leads_found: Search,
@@ -44,7 +45,18 @@ export function Transcript({ lines, events, open, onToggle }: Props) {
       .filter((e) => e.say)
       .map((e) => ({ kind: 'event', id: `e${e.seq}`, ts: e.ts, type: e.type, text: e.say }))
     const vo: Item[] = lines.map((l) => ({ kind: 'voice', ...l }))
-    return [...ev, ...vo].sort((a, b) => a.ts - b.ts)
+    const sorted = [...ev, ...vo].sort((a, b) => a.ts - b.ts)
+    // a search emits many small progress lines in a row: fold each run into one expandable item
+    const out: Item[] = []
+    for (const it of sorted) {
+      const last = out[out.length - 1]
+      if (it.kind === 'event' && it.type === 'progress') {
+        const step = { id: it.id, ts: it.ts, text: it.text }
+        if (last?.kind === 'steps') last.steps.push(step)
+        else out.push({ kind: 'steps', id: `s${it.id}`, ts: it.ts, steps: [step] })
+      } else out.push(it)
+    }
+    return out
   }, [lines, events])
 
   useEffect(() => {
@@ -88,6 +100,8 @@ export function Transcript({ lines, events, open, onToggle }: Props) {
                   <span className="msg-who">{it.role === 'user' ? 'You' : 'RaktSetu'} <time>{clock(it.ts)}</time></span>
                   <p>{it.text}</p>
                 </li>
+              ) : it.kind === 'steps' ? (
+                <StepsItem key={it.id} steps={it.steps} />
               ) : (
                 <EventItem key={it.id} type={it.type} text={it.text} ts={it.ts} />
               ),
@@ -97,6 +111,29 @@ export function Transcript({ lines, events, open, onToggle }: Props) {
         <div ref={end} />
       </div>
     </section>
+  )
+}
+
+/** A run of search steps as one line: the latest step, with the full list one click away. */
+function StepsItem({ steps }: { steps: { id: string; ts: number; text: string }[] }) {
+  const [open, setOpen] = useState(false)
+  const last = steps[steps.length - 1]
+  if (steps.length === 1) return <EventItem type="progress" text={last.text} ts={last.ts} />
+  return (
+    <li className="evt evt-progress evt-steps">
+      <Loader size={14} className="evt-icon" aria-hidden />
+      <div className="evt-body">
+        <button className="evt-more evt-steps-head" onClick={() => setOpen(!open)} aria-expanded={open}>
+          {open ? 'Hide' : 'Search'} · {steps.length} steps
+        </button>
+        {open ? (
+          <ol className="evt-steps-list">{steps.map((st) => <li key={st.id}>{st.text}</li>)}</ol>
+        ) : (
+          <p className="clamp1">{last.text}</p>
+        )}
+      </div>
+      <time>{clock(last.ts)}</time>
+    </li>
   )
 }
 

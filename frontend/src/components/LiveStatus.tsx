@@ -7,6 +7,9 @@ import type { BackendEvent, Call, Flags, RequestRow, RequestState } from '../typ
 import { COMPONENT_LABEL, Countdown, RouteBadge, StatusPill, km } from './bits'
 import { BanksList } from './BanksList'
 import { CallRow } from './CallRow'
+import { CountUp } from './CountUp'
+import { BankRadar } from './BankRadar'
+import { useFlip } from '../hooks/useFlip'
 import { StepFeed } from './StepFeed'
 import { RequestForm } from './RequestForm'
 import { CollapseButton, Rail } from './Rail'
@@ -163,11 +166,11 @@ function RequestView({ st, onChanged, route, demoBanks }: { st: RequestState; on
         </p>
 
         <div className="units-row" aria-label={`${p.confirmed} of ${p.needed} units phone-confirmed`}>
-          <span className="units-big num">{Math.min(p.confirmed, p.needed)}<span className="muted"> / {p.needed}</span></span>
+          <span className="units-big num"><CountUp value={Math.min(p.confirmed, p.needed)} /><span className="muted"> / {p.needed}</span></span>
           <span className="units-label">{nonePhoned ? 'no bank phoned yet' : demoConfirmed ? 'units confirmed on the demo line, not by the bank' : 'units confirmed on the phone'}</span>
         </div>
         <div className="segments" aria-hidden>
-          {Array.from({ length: p.needed }, (_, i) => <i key={i} className={i < p.confirmed ? 'on' : ''} />)}
+          {Array.from({ length: p.needed }, (_, i) => <i key={i} className={i < p.confirmed ? 'on' : ''} style={{ transitionDelay: i < p.confirmed ? `${i * 110}ms` : '0ms' }} />)}
         </div>
         <p className="fine">Portal stock is only a lead. Donors restock the bank and never count here.</p>
       </div>
@@ -230,7 +233,10 @@ function RequestView({ st, onChanged, route, demoBanks }: { st: RequestState; on
           )}
         </div>
         {banks.length ? (
-          <WaveList calls={banks} stale={stale} />
+          <>
+            <BankRadar hospital={st.hospital} calls={banks} radiusKm={Number(r.wave >= 2 && r.wave2_radius_km ? r.wave2_radius_km : r.bank_radius_km)} />
+            <WaveList calls={banks} stale={stale} />
+          </>
         ) : (
           <Shortlist st={st} />
         )}
@@ -254,17 +260,32 @@ function RequestView({ st, onChanged, route, demoBanks }: { st: RequestState; on
   )
 }
 
+/** Ringing first, then confirmed, queued, empty, failed: rows glide to their new place as results land. */
+function rank(c: Call): number {
+  if (c.status === 'dialing') return 0
+  if (c.status === 'completed') return c.confirmed_units + c.alt_units > 0 ? 1 : 3
+  if (c.status === 'queued') return 2
+  if (c.status === 'skipped') return 5
+  return 4
+}
+
 function WaveList({ calls, stale }: { calls: Call[]; stale: Set<string> }) {
   const waves = [...new Set(calls.map((c) => c.wave))].sort()
+  const ref = useFlip<HTMLDivElement>()
   return (
-    <>
+    <div ref={ref} className="board">
       {waves.map((w) => (
         <div key={w}>
           {waves.length > 1 && <p className="wave-label">Wave {w}</p>}
-          <ul className="calls">{calls.filter((c) => c.wave === w).map((c) => <CallRow key={c.id} c={c} stale={stale.has(c.target_id)} />)}</ul>
+          <ul className="calls">
+            {calls
+              .filter((c) => c.wave === w)
+              .sort((a, b) => rank(a) - rank(b) || (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9))
+              .map((c) => <CallRow key={c.id} c={c} stale={stale.has(c.target_id)} />)}
+          </ul>
         </div>
       ))}
-    </>
+    </div>
   )
 }
 

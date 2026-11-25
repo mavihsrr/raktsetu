@@ -36,6 +36,9 @@ export interface Call {
   willing?: 'yes' | 'no' | 'later' | string | null
   lat?: number | null
   lng?: number | null
+  queued_at?: number | null
+  started_at?: number | null
+  ended_at?: number | null
   transcript?: TranscriptLine[] | null
 }
 

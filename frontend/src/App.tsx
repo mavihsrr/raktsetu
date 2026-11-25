@@ -7,6 +7,7 @@ import { Transcript } from './components/Transcript'
 import { useLive } from './hooks/useLive'
 import { usePanels } from './hooks/usePanels'
 import { orbDemo } from './lib/orbDemo'
+import { useBoardDemo } from './lib/boardDemo'
 import { VoiceSession, type Levels, type VoiceLine, type VoiceState } from './lib/voice'
 
 const SILENT: Levels = { mic: 0, out: 0, micBands: [0, 0, 0], outBands: [0, 0, 0] }
@@ -14,6 +15,9 @@ const SILENT: Levels = { mic: 0, out: 0, micBands: [0, 0, 0], outBands: [0, 0, 0
 export default function App() {
   const inVoice = useRef(false)
   const live = useLive(() => inVoice.current)
+  // dev-only fixture (#boarddemo) so the call board can be tuned without placing calls
+  const boardDemo = useBoardDemo(import.meta.env.DEV && location.hash.includes('boarddemo'))
+  const view = boardDemo ?? live.state
   const panels = usePanels()
   const [vstate, setVState] = useState<VoiceState>('idle')
   const [detail, setDetail] = useState<string>()
@@ -63,26 +67,26 @@ export default function App() {
 
   inVoice.current = vstate !== 'idle' && vstate !== 'error'
   const events = useMemo(() => {
-    const own = live.state?.events ?? []
+    const own = view?.events ?? []
     const seen = new Set(own.map((e) => e.seq))
     return [...own, ...live.progress.filter((e) => !seen.has(e.seq))]
-  }, [live.state, live.progress])
+  }, [view, live.progress])
   const latestProgress = live.progress.length ? live.progress[live.progress.length - 1].say : undefined
 
   // a bank confirming units makes the orb bloom green (only for confirmations that arrive while watching)
   const seen = useRef<{ rid: string | null; max: number }>({ rid: null, max: 0 })
   useEffect(() => {
-    const rid = live.state?.request.id ?? null
+    const rid = view?.request.id ?? null
     const max = events.reduce((m, e) => Math.max(m, e.seq), 0)
     if (seen.current.rid !== rid) { seen.current = { rid, max }; return }
     if (events.some((e) => e.seq > seen.current.max && e.type === 'bank_confirmed')) setBloomKey((k) => k + 1)
     seen.current.max = Math.max(seen.current.max, max)
-  }, [events, live.state?.request.id])
+  }, [events, view?.request.id])
 
   const caption = lines.length > sessionStart ? lines[lines.length - 1] : undefined
 
   // with live status collapsed, anything that needs the coordinator surfaces as a pill on the stage
-  const st = live.state
+  const st = view
   const peek = !panels.open.right && st
     ? (() => {
         const r = st.request
@@ -120,7 +124,7 @@ export default function App() {
           list={live.list}
           selected={live.selected}
           onSelect={live.setSelected}
-          state={live.state}
+          state={view}
           onChanged={live.refresh}
           loadError={live.loadError}
           open={panels.open.right}
