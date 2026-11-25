@@ -347,10 +347,10 @@ label { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
 .topbar { position: relative; background: linear-gradient(180deg, #101018, #0b0b0f); border-bottom-color: transparent; }
 .topbar::after {
   content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(124, 156, 255, 0.45) 30%, rgba(255, 134, 211, 0.35) 55%, rgba(94, 240, 214, 0.25) 75%, transparent);
+  background: linear-gradient(90deg, transparent, rgba(124, 156, 255, 0.22) 30%, rgba(255, 134, 211, 0.14) 55%, rgba(94, 240, 214, 0.1) 75%, transparent);
 }
 .brand svg path { fill: url(#brand-grad); }
-.chip-live { background: linear-gradient(135deg, #e0405a, #b02a52); }
+.chip-live { background: #c2334a; }
 
 /* side panels: lit from above, like glass over the stage */
 .col-transcript, .col-status {
@@ -364,30 +364,30 @@ label { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
 }
 .btn:active:not(:disabled), .round:active, .peek:active { transform: scale(0.97); }
 .btn-primary {
-  background: linear-gradient(180deg, #ffffff 0%, #e4e8ff 100%);
-  border-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 6px 20px -8px rgba(124, 156, 255, 0.55);
+  background: #f2f2f6;
+  border-color: transparent;
+  box-shadow: none;
 }
-.btn-primary:hover:not(:disabled) { background: linear-gradient(180deg, #ffffff 0%, #eef0ff 100%); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 10px 28px -8px rgba(124, 156, 255, 0.7); }
+.btn-primary:hover:not(:disabled) { background: #ffffff; }
 .btn-lg { height: 46px; padding: 0 24px; font-size: 15px; font-weight: 600; }
-.round { background: linear-gradient(180deg, #23232f, #18181f); }
-.round-on { background: linear-gradient(180deg, #ffffff, #e4e8ff); }
-.round-end { background: linear-gradient(180deg, #ef5466, #c92f43); border-color: transparent; box-shadow: 0 8px 24px -10px rgba(239, 84, 102, 0.8); }
-.round-end:hover { background: linear-gradient(180deg, #f5687a, #d6384c); }
+.round { background: #1d1d26; }
+.round-on { background: #f2f2f6; }
+.round-end { background: #d93a4a; border-color: transparent; box-shadow: none; }
+.round-end:hover { background: #e5485a; }
 .orb-hit:active:not(:disabled) { transform: scale(0.985); }
 
 /* inputs under the orb sit on frosted glass */
 .start-fields input, .start-fields select { background: rgba(255, 255, 255, 0.035); backdrop-filter: blur(10px); border-color: rgba(255, 255, 255, 0.08); }
 
 /* status surfaces */
-.gate-blue { background: linear-gradient(160deg, rgba(124, 180, 255, 0.16), rgba(124, 156, 255, 0.05)); }
-.gate-amber { background: linear-gradient(160deg, rgba(245, 181, 68, 0.17), rgba(245, 120, 68, 0.05)); }
-.plan { background: linear-gradient(160deg, rgba(74, 222, 128, 0.16), rgba(74, 222, 128, 0.04)); }
-.plan-short { background: linear-gradient(160deg, rgba(245, 181, 68, 0.16), rgba(245, 181, 68, 0.04)); }
+.gate-blue { background: rgba(124, 180, 255, 0.08); }
+.gate-amber { background: rgba(245, 181, 68, 0.09); }
+.plan { background: rgba(74, 222, 128, 0.07); }
+.plan-short { background: rgba(245, 181, 68, 0.07); }
 .segments i.on { background: linear-gradient(90deg, #34d399, #4ade80); border-color: transparent; box-shadow: 0 0 12px -2px rgba(74, 222, 128, 0.6); }
-.msg-user { background: linear-gradient(160deg, rgba(124, 156, 255, 0.16), rgba(124, 156, 255, 0.06)); border-color: rgba(124, 156, 255, 0.22); }
-.evt { background: linear-gradient(160deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)); }
-.evt-approval_needed { background: linear-gradient(160deg, rgba(245, 181, 68, 0.16), rgba(245, 181, 68, 0.05)); }
+.msg-user { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.08); }
+.evt { background: rgba(255, 255, 255, 0.03); }
+.evt-approval_needed { background: rgba(245, 181, 68, 0.09); }
 .rail-badge { background: linear-gradient(135deg, #a9b8ff, #7c9cff); }
 
 /* motion: things arrive, they don't pop */
@@ -410,17 +410,16 @@ label { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
 /* ================================================================ living gradient backdrop */
 /* The page is no longer black: a deep indigo / plum / teal field drifts slowly behind everything.
    It lives on one fixed layer and moves by transform only, so it costs almost nothing to animate. */
-body { background: #0c0b1a; }
+body { background: #0a0a10; }
 .app { position: relative; isolation: isolate; background: transparent; }
 .app::before {
   content: ''; position: fixed; inset: -25%; z-index: -1; pointer-events: none;
   background:
-    radial-gradient(38% 34% at 22% 24%, rgba(98, 78, 230, 0.42), transparent 70%),
-    radial-gradient(34% 30% at 78% 22%, rgba(196, 84, 186, 0.26), transparent 70%),
-    radial-gradient(40% 36% at 68% 82%, rgba(38, 150, 178, 0.24), transparent 72%),
-    radial-gradient(30% 28% at 30% 78%, rgba(70, 90, 210, 0.22), transparent 70%),
-    linear-gradient(160deg, #141133 0%, #0d1026 45%, #150d26 100%);
-  animation: backdrop-drift 48s ease-in-out infinite alternate;
+    radial-gradient(38% 34% at 22% 24%, rgba(98, 78, 230, 0.16), transparent 70%),
+    radial-gradient(34% 30% at 78% 22%, rgba(196, 84, 186, 0.08), transparent 70%),
+    radial-gradient(40% 36% at 68% 82%, rgba(38, 150, 178, 0.08), transparent 72%),
+    linear-gradient(160deg, #0d0d16 0%, #0a0a10 50%, #0c0b13 100%);
+  animation: backdrop-drift 60s ease-in-out infinite alternate;
   will-change: transform;
 }
 @keyframes backdrop-drift {
@@ -430,9 +429,9 @@ body { background: #0c0b1a; }
 }
 
 /* glass over the backdrop */
-.topbar { background: rgba(14, 13, 30, 0.55); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); }
+.topbar { background: rgba(12, 12, 18, 0.7); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); }
 .col-transcript, .col-status {
-  background: linear-gradient(180deg, rgba(30, 28, 58, 0.55) 0%, rgba(16, 15, 34, 0.62) 40%, rgba(12, 12, 26, 0.7) 100%);
+  background: rgba(16, 16, 22, 0.72);
   backdrop-filter: blur(24px) saturate(1.25); -webkit-backdrop-filter: blur(24px) saturate(1.25);
   border-color: rgba(255, 255, 255, 0.06);
 }
