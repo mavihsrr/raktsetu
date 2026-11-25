@@ -93,6 +93,22 @@ pytest -q
 4. In Flagsmith, create the flags (`scripts/flagsmith_setup.py`), then set `call_mode=live`.
 5. Talk: `.venv/bin/python voice/intake_voice.py --barge-in` (`pip install -e ".[voice]"`, which needs PortAudio).
 
+### Deployment (GKE)
+
+Live at `https://considered-iconographic-setsuko.ngrok-free.dev`: GKE Autopilot cluster `raktsetu` (project
+`festivehackbuild`, `asia-south1`), with an in-cluster ngrok agent serving the same static domain, so the Sarvam tool
+URLs never change. The app runs as 1 replica with Recreate strategy, SQLite on a 1 Gi PersistentVolume and a
+`/healthz` probe. NudgeBee's agent runs in the `nudgebee-agent` namespace.
+
+```bash
+deploy/deploy.sh             # builds the COMMITTED code (git HEAD) with Cloud Build and rolls it out
+deploy/deploy.sh --no-build  # re-applies secrets (from .env) and manifests only
+```
+
+Manifests: `deploy/k8s/raktsetu.yaml`. Secrets are created from `.env` and the local ngrok config at deploy time;
+they are never committed. After a restart, a search resumes only if it started in the last 10 minutes; older ones
+are closed without phoning anyone.
+
 ### Demo-safe calling (the default)
 
 No real bank or donor is ever phoned by default. Who gets dialled is decided by Flagsmith:

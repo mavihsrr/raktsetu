@@ -1,0 +1,19 @@
+.env
+.env.*
+!.env.example
+.venv
+.git
+.claude
+data
+tests
+voice
+agents
+scripts
+deploy
+*.egg-info
+__pycache__
+*.pyc
+.DS_Store
+
+# gcloud builds submit uploads only what the Dockerfile needs
+.gcloudignore
