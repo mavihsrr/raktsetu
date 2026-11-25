@@ -23,37 +23,37 @@ colors:
   end-call-red: "#d93a4a"
 typography:
   figure:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', Roboto, sans-serif"
     fontSize: "40px"
     fontWeight: 650
     lineHeight: 1
     letterSpacing: "-0.03em"
   headline:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', Roboto, sans-serif"
     fontSize: "20px"
     fontWeight: 600
     letterSpacing: "-0.015em"
   title:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', Roboto, sans-serif"
     fontSize: "13px"
     fontWeight: 600
     letterSpacing: "0.01em"
   body:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', Roboto, sans-serif"
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.5
   transcript:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', Roboto, sans-serif"
     fontSize: "14.5px"
     fontWeight: 400
     lineHeight: 1.55
   label:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', Roboto, sans-serif"
     fontSize: "12px"
     fontWeight: 400
   mono:
-    fontFamily: "ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace"
+    fontFamily: "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace"
     fontSize: "0.92em"
 rounded:
   xs: "4px"
@@ -142,17 +142,17 @@ components:
 
 **Creative North Star: "The Quiet Switchboard"**
 
-RaktSetu plays the voice-assistant category standard straight: a near-black room, one living orb at its centre, and a precise live-status board beside it. The orb is the only object allowed to glow; everything else is flat, hairline-seamed, and set in the system sans at small, exact sizes. The screen exists to prove what the voice said, so the board reads like an instrument panel rather than a page.
+RaktSetu plays the voice-assistant category standard straight: a near-black room, one living orb at its centre, and a precise live-status board beside it. The room is near-black with only a faint, slowly drifting violet and teal tint, and the two side panels are dark frosted glass over it. The orb is the one colourful object; everything else is quiet, hairline-seamed, and set in Apple's San Francisco family at small, exact sizes. The screen exists to prove what the voice said, so the board reads like an instrument panel rather than a page.
 
 Colour carries meaning, never mood. Five state hues (green, blue, amber, red, violet) appear only where a call, gate or line is in that state, almost always as a tinted wash with matching text. The deadline and the confirmed-unit count are the loudest typography on screen; nothing decorative competes with them.
 
-Density is operator-grade: 12 to 14.5px text, 34px controls, tabular figures for every count and time. Motion is restrained and state-driven (a dialing ring, a confirmation flash, the orb's audio-driven deformation), and all of it collapses under reduced motion.
+Density is operator-grade: 12 to 14.5px text, 34px controls, tabular figures for every count and time. Motion is restrained and state-driven (a dialing ring with a live timer, rows gliding to their new place when a result lands, a confirmation flash, a count-up, the orb breathing with the voice, a pebble ripple when a session starts), and all of it collapses under reduced motion.
 
 **Key Characteristics:**
-- Near-black ground with two lifted surface steps and hairline seams; no shadows.
-- One signature: the periwinkle-to-indigo orb that deforms from live audio.
+- Near-black ground with a faint drifting tint; frosted-glass side panels and hairline seams; no shadows.
+- One signature: a gradient orb that stays a perfect circle and breathes with live audio.
 - State colour only for meaning, as 12-14% tinted washes with full-strength text.
-- System UI sans throughout; tabular numerals on every figure.
+- SF Pro (Text for UI, Display for large type) throughout; tabular numerals on every figure.
 - Pills for status, small radii for controls, full circles for voice controls.
 
 ## Colors
@@ -194,15 +194,16 @@ Each state hue has a wash companion at the same RGB with 0.12 to 0.14 alpha (`--
 
 ## Typography
 
-**Display Font:** none distinct; the system UI sans carries every role.
-**Body Font:** ui-sans-serif / system-ui stack (with -apple-system, Segoe UI, Roboto)
-**Label/Mono Font:** ui-monospace stack (SF Mono, JetBrains Mono, Menlo) for phone numbers and IDs.
+**Display Font:** SF Pro Display (via `-apple-system-headline` / `-apple-system`) for the stage label, live caption, request title, units figure and brand name.
+**Body Font:** SF Pro Text (`-apple-system`, `BlinkMacSystemFont`), falling back to Helvetica Neue, Segoe UI, Roboto off Apple platforms.
+**Label/Mono Font:** SF Mono (`ui-monospace`) for phone numbers and IDs.
 
-**Character:** Native, quiet and exact, in the manner of the voice apps and dev dashboards this sits beside. Hierarchy comes from weight (450 to 650) and small size steps, not from a display face.
+**Character:** Native, quiet and exact, in the manner of the voice apps and dev dashboards this sits beside. Hierarchy comes from weight (450 to 650) and small size steps. Nothing is downloaded: the fonts are the platform's own, so the look is Apple-native on Macs and iPhones and a close neutral sans elsewhere.
 
 ### Hierarchy
 - **Figure** (650, 40px, line-height 1, -0.03em): the confirmed-units count. The one large number on screen; its denominator drops to 22px/500 muted.
-- **Headline** (600, 20px, -0.015em): the stage state label. The request title runs one step smaller (650, 19px).
+- **Headline** (600, 21px, -0.015em): the idle stage title. While a session runs the state label drops to a 13px muted line and the live **caption** (500, 22px) takes over, revealed word by word.
+- **Request title** (650, 19px).
 - **Title** (600, 13px, +0.01em): column headings (muted) and block titles (text).
 - **Body** (400, 14px, 1.5): base UI copy, stage hint, gate questions.
 - **Transcript** (400, 14.5px, 1.55): spoken lines, slightly larger for reading while listening.
@@ -211,11 +212,11 @@ Each state hue has a wash companion at the same RGB with 0.12 to 0.14 alpha (`--
 ### Named Rules
 **The Tabular Rule.** Every count, unit, time and countdown uses tabular figures.
 
-**The Weight-Ladder Rule.** Hierarchy moves through weights 450, 550, 600, 650 at small size steps; do not introduce a display face or sizes above the 40px figure.
+**The Weight-Ladder Rule.** Hierarchy moves through weights 450, 550, 600, 650 at small size steps; keep to the SF family and do not exceed the 40px figure (the live caption at 22px is the only large running text).
 
 ## Layout
 
-Three full-height columns under a single top bar: conversation (300-360px, panel), stage (380px to fill, ground), live status (400-480px, panel). The page itself does not scroll on desktop; each side column scrolls internally beneath a 52px column head. Under 1100px the grid collapses to one column ordered stage, live status, conversation, the page scrolls, and column scroll areas cap at 70vh.
+Three full-height columns under a single top bar: conversation (360px, glass), stage (380px to fill), live status (460px, glass). Each side column collapses to a 60px rail (button, or `[` and `]` keys; remembered per browser) that keeps the essentials in view: an unread count for the conversation, units confirmed, an approval alert and the number of live calls for status. When status is collapsed, anything needing approval surfaces as a pill on the stage. The page itself does not scroll on desktop; each side column scrolls internally beneath a 52px column head, with content fading at the top and bottom edges. Under 1100px the grid collapses to one column ordered stage, live status, conversation, the page scrolls, and each rail becomes a one-line bar.
 
 Spacing runs on a 4px base: 4/8/12/16/20/24 dominate. Column padding is 16px; status blocks separate by 20px plus a hairline; list gaps are 2 to 14px depending on density. The top bar is 12px by 20px with status chips pushed right.
 
@@ -224,10 +225,11 @@ Spacing runs on a 4px base: 4/8/12/16/20/24 dominate. Column padding is 16px; st
 
 ## Elevation & Depth
 
-Flat. Depth is tonal: ground, panel, raised, hover step up in lightness by a few points each, and hairline seams define edges. The only glow in the system is the orb's own radial gradient, drawn in canvas. Focused inputs get a 3px periwinkle halo (`0 0 0 3px rgba(124,156,255,0.18)`), which is a focus signal, not elevation.
+Mostly flat. Depth is tonal and optical: the page sits on a near-black field with a faint violet and teal tint that drifts very slowly (a fixed layer moved by transform only, 60s per cycle), and the two side panels and the top bar are dark frosted glass over it (about 70% opaque with a 24px blur). Buttons, cards and gates are flat fills, never gradients or shadows. The only glow in the system is the orb and the soft aurora behind it. Focused inputs get a 3px periwinkle halo (`0 0 0 3px rgba(124,156,255,0.18)`), which is a focus signal, not elevation.
 
 ### Named Rules
-**The One Glow Rule.** Only the orb emits light. No box-shadows on panels, cards, buttons or popovers.
+**The One Glow Rule.** Only the orb (and its aurora) emits light. No box-shadows on panels, cards, buttons or popovers, and no gradient fills on controls.
+**The Calm Rule.** Nothing flashes. The orb's brightness, rim and colour never track individual syllables; voice moves only its size, gently.
 
 ## Shapes
 
@@ -258,14 +260,20 @@ There are no floating cards. Status is grouped into **blocks** separated by seam
 ### Inputs / Fields
 36px tall, 6px radius, ground fill, seam-strong border, faint placeholder. Focus swaps the border to periwinkle and adds the 3px halo. Labels sit above in 12px muted. On the stage the start fields go transparent with a lighter seam border.
 
-### Call rows
-The live board's core list. A four-column row (20px state icon, name and meta, result, chevron) at 9px by 8px, hover fill, expandable to show the call transcript. Dialing shows a blue dot with an expanding ring; a newly confirmed call flashes a green wash that fades over 1.6s and its units turn green.
+### Call rows and the board
+The live board's core list. A four-column row (20px state icon, name and meta, result, chevron) at 9px by 8px, hover fill, expandable to show the call transcript. Rows are ordered ringing, confirmed, queued, empty, failed, and glide (transform only) to their new place when a result lands. Ringing shows a blue dot with an expanding ring and a live `m:ss` timer; a newly confirmed call flashes a green wash that fades over 1.8s and its units turn green. Calls answered by the demo line carry a violet "demo line answered, not the bank" tag. The units figure counts up and the bar fills one segment at a time.
+
+### The plan
+When a request resolves, the plan replaces the gate: a status pill (Target met in green, Short by N in amber) and a Copy plan button; the demo-line warning when the demo phone answered for the banks; ranked cards (numbered circle, bank name and route badge, units and group, time away, hold time) each with a Directions link when the bank is located; then the next steps as a numbered list, backup stock, and unverified leads with tap-to-call numbers. Directions are never offered for a bank without coordinates.
+
+### Bank radar
+A 300px SVG above the call list: the hospital at the centre, banks plotted by real distance (direction from lat/lng when known, otherwise spread evenly), a dashed ring at the search radius and 50% and 100% distance rings. Dots are blue while calling (pulsing), green confirmed, grey queued, red failed. Banks without a distance are counted in the caption, never placed.
 
 ### Transcript
-User lines sit right-aligned in a raised bubble (max 88%); agent lines run unboxed with the agent name in orb highlight. Backend events interleave as faint 12.5px rows on a 2.5% white wash, with icon colour by event state; approval events take the amber wash.
+User lines sit right-aligned in a raised bubble (max 88%); agent lines run unboxed with the agent name in orb highlight. Backend events interleave as faint 12.5px rows on a 3% white wash, folded to three lines with a More toggle; a run of search steps collapses into one "Search · N steps" line that expands on click. Approval events take the amber wash.
 
 ### The Orb (signature)
-A canvas blob roughly 320px across that deforms from real audio: the agent's playback swells it, the user's mic draws it in slightly and emits ripple rings. Each voice state has its own three-stop palette (highlight, body, depth) and the orb eases between them: idle and listening periwinkle-indigo, user cooler cyan, thinking violet with faster spin, connecting dimmed with a travelling arc, error red. Under reduced motion it holds still at its state colour.
+A WebGL shader orb, always a perfect circle, about 300px, drawn on a transparent full-stage canvas so its aurora can spill behind the stage. The interior is a slowly rotating gradient with three soft colour blobs drifting through it, a faint glass highlight and a steady rim. The agent's voice makes it breathe (at most about 7% in size, heavily smoothed) and nudges the flow speed; the user's voice draws it in slightly and sends faint rings outward. Each voice state has its own three-stop palette plus an accent hue, and the orb eases between them: idle and listening periwinkle with lavender, user cooler cyan with teal, thinking violet, speaking soft pink-violet, connecting dimmed with a travelling arc, error red. Starting a session drops a "pebble": soft rings spread across the stage and gently bend the background; a bank confirming drops a green one. Without WebGL it falls back to a still CSS orb; under reduced motion it holds still.
 
 ## Do's and Don'ts
 
@@ -273,13 +281,15 @@ A canvas blob roughly 320px across that deforms from real audio: the agent's pla
 - **Do** show state as a 12-14% wash of the state hue with full-strength text in that hue.
 - **Do** divide regions with 1px seams (`seam` between regions, `seam-strong` on control borders).
 - **Do** use tabular figures for every count, time and countdown.
-- **Do** keep the orb the only glowing object, and let it respond to real audio levels.
+- **Do** keep the orb the only glowing object, and let it respond to real audio levels through slow envelopes, never per-syllable flicker.
 - **Do** honour reduced motion: the orb stills and transitions collapse.
+- **Do** keep the voice usable from the keyboard: Space mutes, Esc ends the call.
 - **Do** keep controls at 34px (44px for the one large stage action, 56px for round voice controls).
 
 ### Don't:
 - **Don't** use a state hue for emphasis or decoration; it must mean the state.
-- **Don't** add box-shadows or floating cards on the ground; depth is tonal.
+- **Don't** add box-shadows or gradient fills; depth is tonal and optical (glass over a dim backdrop).
+- **Don't** let anything flash or pulse with the voice: no brightness, rim or halo changes, and no changes to the orb's shape.
 - **Don't** fill buttons with periwinkle; it belongs to the voice and focus.
 - **Don't** use solid red fills anywhere except LIVE and end-call.
 - **Don't** set any text larger than the 40px confirmed-units figure.

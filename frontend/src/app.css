@@ -478,3 +478,56 @@ input, select { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 2
 .bank-dist { color: var(--muted); }
 .bank-stock { font-weight: 600; color: var(--green); }
 .bank-stock.is-zero { color: var(--faint); }
+
+/* ================================================================ phase 2: call board */
+.board .calls { position: relative; }
+.calls > li { animation: row-in 0.42s var(--ease-out) both; }
+@keyframes row-in { from { opacity: 0; transform: translateX(14px); } }
+.call.is-dialing .call-main { background: linear-gradient(90deg, rgba(124, 180, 255, 0.09), transparent 70%); }
+.ring-timer { font-weight: 600; letter-spacing: 0.02em; }
+.call.is-confirmed { animation: confirm 1.8s var(--ease-out), row-in 0.42s var(--ease-out) both; }
+.segments i { transition: background 0.4s var(--ease-out), box-shadow 0.4s var(--ease-out); }
+.units-big { display: inline-flex; align-items: baseline; }
+
+/* bank radar */
+.radar { margin: 0 0 12px; display: grid; gap: 6px; justify-items: center; }
+.radar svg { width: min(100%, 300px); height: auto; overflow: visible; }
+.radar-ring { fill: none; stroke: rgba(255, 255, 255, 0.07); stroke-width: 1; }
+.radar-search { fill: rgba(124, 156, 255, 0.04); stroke: rgba(124, 156, 255, 0.35); stroke-width: 1; stroke-dasharray: 3 4; }
+.radar-km { fill: var(--faint); font-size: 8px; font-variant-numeric: tabular-nums; }
+.radar-home { fill: var(--text); stroke: rgba(255, 255, 255, 0.25); stroke-width: 4; }
+.radar-dot circle { transition: fill 0.4s var(--ease-out); }
+.radar-dot .is-lead { fill-opacity: 0.55; }
+.radar-ping { fill: none; stroke-width: 1.5; transform-box: fill-box; transform-origin: center; animation: radar-ping 1.6s var(--ease-out) infinite; }
+@keyframes radar-ping { from { transform: scale(0.6); opacity: 1; } to { transform: scale(2.1); opacity: 0; } }
+.radar-cap { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; font-size: 11.5px; color: var(--muted); }
+.dotk { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+
+/* folded search steps in the conversation */
+.clamp1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; margin: 2px 0 0; }
+.evt-steps-head { margin: 0; color: var(--text); font-size: 12.5px; }
+.evt-steps-list { margin: 6px 0 0; padding-left: 16px; display: grid; gap: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .calls > li, .call.is-confirmed { animation: none; }
+  .radar-ping { animation: none; opacity: 0.5; }
+}
+
+/* keyboard hint under the voice controls */
+.kbd-hint { margin: 14px 0 0; text-align: center; font-size: 12px; color: var(--faint); }
+.kbd-hint kbd { font: 600 11px var(--mono); padding: 2px 6px; border-radius: 5px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--muted); }
+
+/* ================================================================ final plan */
+.plan-state { font-size: 12px; font-weight: 650; padding: 2px 9px; border-radius: 99px; }
+.plan-state.is-met { background: var(--green-bg); color: var(--green); }
+.plan-state.is-short { background: var(--amber-bg); color: var(--amber); }
+.plan-copy { margin-left: auto; height: 28px; font-size: 12px; padding: 0 10px; }
+.alloc-cards { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.alloc-card { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: var(--r-md); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.07); }
+.alloc-rank { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: var(--green-bg); color: var(--green); }
+.alloc-body { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.alloc-card .alloc-name { font-weight: 600; font-size: 14px; }
+.alloc-card .alloc-meta b { color: var(--text); font-weight: 650; }
+.alloc-dir { flex: none; height: 30px; font-size: 12.5px; color: var(--orb-a); text-decoration: none; }
+.plan-steps { margin: 4px 0 12px; padding-left: 20px; display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.plan-steps li::marker { color: var(--faint); font-variant-numeric: tabular-nums; }

@@ -97,7 +97,12 @@ export function Orb({ state, levels, anchor, bloomKey, pebbleKey }: Props) {
       accent: U('uAccent'), pebble: U('uPebble'), pebbleCol: U('uPebbleCol'),
     }
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.75)
+    // Resolution adapts to the machine: start sharp, and step down if frames take too long. The shader is
+    // per-pixel, so fewer pixels is the cheapest way to keep the voice UI smooth on older laptops and phones.
+    let dpr = Math.min(window.devicePixelRatio || 1, 1.75)
+    const MIN_DPR = 0.7
+    let slowMs = 0
+    let slowFrames = 0
     const resize = () => {
       const w = Math.max(1, Math.round(canvas.clientWidth * dpr))
       const h = Math.max(1, Math.round(canvas.clientHeight * dpr))
@@ -119,8 +124,19 @@ export function Orb({ state, levels, anchor, bloomKey, pebbleKey }: Props) {
       cur + (target - cur) * (target > cur ? attack : release)
 
     const frame = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000)
+      const raw = now - last
+      const dt = Math.min(0.05, raw / 1000)
       last = now
+      // frame-time watchdog: ~1.5 s of frames averaging over 26 ms (under ~38 fps) lowers the resolution one step
+      if (raw < 250) {
+        slowMs += raw
+        slowFrames += 1
+        if (slowFrames >= 60) {
+          if (slowMs / slowFrames > 26 && dpr > MIN_DPR) { dpr = Math.max(MIN_DPR, dpr * 0.78); resize() }
+          slowMs = 0
+          slowFrames = 0
+        }
+      }
       const still = reduce.matches
       if (!still) t += dt
       const s = stateRef.current

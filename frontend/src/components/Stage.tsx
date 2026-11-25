@@ -91,14 +91,17 @@ export function Stage({ state, detail, levels, caption, bloomKey, pebbleKey, pro
       </div>
 
       {active ? (
+        <>
         <div className="controls">
-          <button className={`round ${muted ? 'round-on' : ''}`} onClick={onMute} aria-pressed={muted} aria-label={muted ? 'Unmute microphone' : 'Mute microphone'}>
+          <button className={`round ${muted ? 'round-on' : ''}`} onClick={onMute} aria-pressed={muted} aria-label={muted ? 'Unmute microphone' : 'Mute microphone'} aria-keyshortcuts="Space" title={muted ? 'Unmute (Space)' : 'Mute (Space)'}>
             {muted ? <MicOff size={20} /> : <Mic size={20} />}
           </button>
-          <button className="round round-end" onClick={onStop} aria-label="End voice session">
+          <button className="round round-end" onClick={onStop} aria-label="End voice session" aria-keyshortcuts="Escape" title="End call (Esc)">
             <PhoneOff size={20} />
           </button>
         </div>
+          <p className="kbd-hint"><kbd>Space</kbd> mute · <kbd>Esc</kbd> end call</p>
+        </>
       ) : (
         <div className="start-form">
           <button className="btn btn-primary btn-lg" onClick={start} disabled={voiceReady === false}>
