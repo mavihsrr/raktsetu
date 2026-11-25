@@ -105,6 +105,14 @@ def create_app(db_path: str | None = None, sim_speed: float | None = None) -> Fa
         return {"ok": True, "uptime_s": round(time.time() - req.app.state.started_at, 1)}
 
     # ---------------------------------------------------------------- intake tools
+    async def tool_event(req: Request, rid: str, tool: str, say: str) -> None:
+        """Shows on the dashboard that the voice agent just called a tool (progress events are never spoken)."""
+        try:
+            if rid and req.app.state.db.one("SELECT id FROM requests WHERE id=?", (rid,)):
+                await coord(req).emit(rid, "progress", {"stage": "tool", "tool": tool, "phase": "start"}, say)
+        except Exception:
+            log.exception("tool status event failed")
+
     @app.post("/tools/find_leads", dependencies=[Depends(tool_auth)])
     async def t_find_leads(req: Request, body: dict = Body(default={})):
         return await safe(coord(req).find_leads,
@@ -117,8 +125,9 @@ def create_app(db_path: str | None = None, sim_speed: float | None = None) -> Fa
 
     @app.post("/tools/start_calls", dependencies=[Depends(tool_auth)])
     async def t_start_calls(req: Request, body: dict = Body(default={})):
-        return await safe(coord(req).start_calls, str(_get(body, "request_id", default="")),
-                          _get(body, "confirmed", default=False))
+        rid = str(_get(body, "request_id", default=""))
+        await tool_event(req, rid, "start_calls", "Agent is using the start_calls tool: placing the confirmation calls…")
+        return await safe(coord(req).start_calls, rid, _get(body, "confirmed", default=False))
 
     @app.post("/tools/get_status", dependencies=[Depends(tool_auth)])
     async def t_get_status(req: Request, body: dict = Body(default={})):
@@ -126,11 +135,15 @@ def create_app(db_path: str | None = None, sim_speed: float | None = None) -> Fa
 
     @app.post("/tools/approve_wave2", dependencies=[Depends(tool_auth)])
     async def t_approve(req: Request, body: dict = Body(default={})):
-        return await safe(coord(req).approve_wave2, str(_get(body, "request_id", default="")), "voice")
+        rid = str(_get(body, "request_id", default=""))
+        await tool_event(req, rid, "approve_wave2", "Agent is using the approve_wave2 tool: widening the search…")
+        return await safe(coord(req).approve_wave2, rid, "voice")
 
     @app.post("/tools/cancel_request", dependencies=[Depends(tool_auth)])
     async def t_cancel(req: Request, body: dict = Body(default={})):
-        return await safe(coord(req).cancel, str(_get(body, "request_id", default="")))
+        rid = str(_get(body, "request_id", default=""))
+        await tool_event(req, rid, "cancel_request", "Agent is using the cancel_request tool: stopping the request…")
+        return await safe(coord(req).cancel, rid)
 
     # ---------------------------------------------------------------- Sarvam webhook
     @app.post("/webhooks/sarvam/{call_id}")
@@ -186,6 +199,7 @@ def create_app(db_path: str | None = None, sim_speed: float | None = None) -> Fa
         except InputError as e:
             raise HTTPException(404, str(e))
         st["events"] = req.app.state.db.q("SELECT * FROM events WHERE request_id=? ORDER BY seq", (rid,))
+        st["banks"] = coord(req).banks_view(rid)   # every bank found, nearest first, distances fill in live
         return st
 
     @app.post("/api/requests", dependencies=[Depends(dash_auth)])

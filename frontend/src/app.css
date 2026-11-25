@@ -454,3 +454,27 @@ input, select { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 2
 
 .tag-violet { background: var(--violet-bg); color: var(--violet); }
 .chip.chip-demo { background: var(--violet-bg); color: var(--violet); border-color: transparent; }
+
+/* live activity + all banks */
+.steps-feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.step { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: start; font-size: 13px; line-height: 1.35; animation: step-in 240ms var(--ease-out); }
+.step-icon { color: var(--green); padding-top: 2px; display: grid; }
+.step.is-running .step-icon { color: var(--blue); }
+.step.is-running .step-text { color: var(--text); }
+.step.is-error .step-icon { color: var(--red); }
+.step-text { color: var(--muted); }
+.step-time { color: var(--faint); font-size: 11px; padding-top: 2px; }
+.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes step-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.banks { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 2px; }
+.bank { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--seam); }
+.bank-main { display: grid; gap: 2px; min-width: 0; }
+.bank-name { font-size: 13.5px; font-weight: 560; }
+.bank-addr { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.bank-meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; align-items: center; }
+.bank-meta a { color: var(--blue); text-decoration: none; display: inline-flex; gap: 4px; align-items: center; }
+.bank-nums { display: grid; gap: 2px; text-align: right; white-space: nowrap; font-size: 12.5px; }
+.bank-dist { color: var(--muted); }
+.bank-stock { font-weight: 600; color: var(--green); }
+.bank-stock.is-zero { color: var(--faint); }

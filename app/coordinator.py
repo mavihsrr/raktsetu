@@ -138,6 +138,20 @@ class Coordinator:
                 "needs_approval": r["status"] == "awaiting_wave2",
                 "done": r["status"] in ("resolved", "unresolved", "cancelled")}
 
+    def banks_view(self, request_id: str) -> list[dict]:
+        """Every bank found for this request (all of the district), nearest/best first, with live distances."""
+        r = self.request(request_id)
+        hospital = self.db.one("SELECT * FROM hospitals WHERE id=?", (r["hospital_id"],))
+        districts = (r.get("districts") or "").split(",")
+        called = {c["target_id"]: c for c in self.calls(request_id) if c["target_type"] == "bank"}
+        out = []
+        for b in rank_banks(self.db, hospital, r["blood_group"], r["component"], r["bank_radius_km"], districts):
+            v = self._bank_view(b)
+            c = called.get(v["id"])
+            v["call_status"], v["route"] = (c["status"], c["route"]) if c else (None, None)
+            out.append(v)
+        return out
+
     # ------------------------------------------------------------------ tool: find_leads
     async def find_leads(self, *, blood_group: str, units: Any, location: str | None, deadline_hours: Any = None,
                          component: str | None = None, requested_by: str = "") -> dict:
@@ -187,7 +201,8 @@ class Coordinator:
                         "next_action": "Read `say` to the user and wait for an explicit yes before calling start_calls."}
         rid = _rid()
         step = lambda say, **kw: self.emit(rid, "progress", kw, say)   # live status for terminal + dashboard
-        await step(f"Searching for {n} unit{'s' if n != 1 else ''} of {spoken_group(group)} near {location}…")
+        await step("Agent is using the find_leads tool", stage="tool", tool="find_leads", phase="start")
+        await step(f"Locating '{location}' on the map (OpenStreetMap)…", stage="geocode", phase="start")
         # Live, every request: place -> state/district -> that district's banks + stock from e-RaktKosh.
         # The voice tool times out at 15 s, so everything here works to an ~11 s deadline.
         t0 = time.monotonic()
@@ -195,11 +210,14 @@ class Coordinator:
             try:
                 place = await asyncio.wait_for(geocode_place(location), timeout=6.0)
             except asyncio.TimeoutError:
-                await step("The map service is slow right now.")
+                await step("The map service is slow right now.", stage="geocode", phase="error")
                 raise InputError("The map service is slow right now. Please say the place again in a moment.")
             if not place:
-                await step(f"Couldn't find '{location}' on the map.")
+                await step(f"Couldn't find '{location}' on the map.", stage="geocode", phase="error")
                 raise InputError(f"I couldn't find '{location}' on the map. Which hospital and town or city is it?")
+            short_place = (", ".join(x.strip() for x in place["label"].split(",")[:3]) if place.get("label") else location)
+            await step(f"Located: {short_place}", stage="geocode", phase="done", lat=place["lat"], lng=place["lng"],
+                       place=short_place)
             try:
                 left = lambda: max(2.0, 10.5 - (time.monotonic() - t0))
                 where = await asyncio.wait_for(resolve(place["state"], place["districts"]), timeout=left())
@@ -207,10 +225,21 @@ class Coordinator:
                     raise InputError(f"I found {location} in {place['state'] or 'India'}, but couldn't match its "
                                      "district on the national blood bank portal. Which district is it in?")
                 state_code, district_label, dcodes = where
-                await step(f"Found it: {district_label} district, {place['state']}. Fetching live stock from e-RaktKosh…")
+                await step(f"Making a live call to e-RaktKosh, the national blood bank portal ({district_label}, "
+                           f"{place['state']})…", stage="portal", phase="start", district=district_label,
+                           state=place["state"])
+                t_portal = time.monotonic()
                 live = await asyncio.wait_for(fetch_banks(comp, state_code, dcodes), timeout=left())
-                await step(f"e-RaktKosh: {len(live)} blood banks in {district_label}, "
-                           f"{sum(1 for b in live if b['stock'] and not b.get('stale'))} with recent stock. Mapping them…")
+                alts = compatible_groups(group, comp)
+                await step(f"Response received from e-RaktKosh in {time.monotonic() - t_portal:.1f}s: "
+                           f"{len(live)} blood banks in {district_label}, "
+                           f"{sum(1 for b in live if b['stock'] and not b.get('stale'))} with recent stock.",
+                           stage="portal", phase="done", total=len(live),
+                           banks=[{"id": b["id"], "name": b["name"], "address": b["address"],
+                                   "phone": ", ".join(b["phones"]) or None,
+                                   "portal_units": sum(b["stock"].get(g, 0) for g in alts),
+                                   "stale": bool(b.get("stale")), "updated": b["portal_updated_at"]} for b in live])
+                await step(f"Calculating the distance from {short_place} to each bank…", stage="distance", phase="start")
             except (PortalError, asyncio.TimeoutError):
                 await step("e-RaktKosh isn't responding.")
                 raise InputError("The national blood bank portal, e-RaktKosh, isn't responding right now. "
@@ -221,7 +250,9 @@ class Coordinator:
             if budget > 0.8:
                 await locate_banks(live, place, FAST_TERMS, per_bank=False, budget_s=budget)
         unlocated = sum(1 for b in live if "lat" not in b)
-        await step(f"Mapped {len(live) - unlocated} of {len(live)} banks; still mapping the rest in the background.")
+        await step(f"Distances calculated for {len(live) - unlocated} of {len(live)} banks; "
+                   "locating the rest in the background.", stage="distance", phase="done",
+                   located=len(live) - unlocated, total=len(live))
         hospital = self._save_place(location, (place["lat"], place["lng"], place["label"]))
         self._save_banks(comp, live)
         self._spawn(self._locate_more(rid, live, place))
@@ -340,8 +371,14 @@ class Coordinator:
                     self.db.update("banks", row["id"], portal=p)
 
     async def _locate_more(self, rid: str, live: list[dict], place: dict) -> None:
+        hits = {"n": 0}
+
         def save(b: dict) -> None:
             self.db.conn.execute("UPDATE banks SET lat=?, lng=? WHERE id=?", (b["lat"], b["lng"], b["id"]))
+            hits["n"] += 1
+            if hits["n"] % 3 == 0:   # every few banks: the dashboard re-reads and re-sorts by distance
+                self._spawn(self.emit(rid, "progress", {"stage": "distance", "phase": "update"},
+                                      f"Located {sum(1 for x in live if 'lat' in x)} of {len(live)} banks so far…"))
         before = sum(1 for b in live if "lat" in b)
         try:
             await locate_banks(live, place, MORE_TERMS, per_bank=True, budget_s=60.0, on_hit=save)
@@ -349,7 +386,8 @@ class Coordinator:
             log.exception("background bank locating failed")
         after = sum(1 for b in live if "lat" in b)
         if after > before:
-            await self.emit(rid, "progress", {}, f"Background mapping done: {after} of {len(live)} banks located.")
+            await self.emit(rid, "progress", {"stage": "distance", "phase": "done"},
+                            f"Background mapping done: {after} of {len(live)} banks located.")
 
     def _routing(self, snap: dict) -> str:
         """real: dial the bank's own number; demo: our demo line stands in; none: list as leads only."""

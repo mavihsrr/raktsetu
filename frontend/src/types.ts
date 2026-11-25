@@ -75,6 +75,33 @@ export interface BackendEvent {
   say: string
 }
 
+export interface BankView {
+  id: string
+  name: string
+  address?: string | null
+  phone?: string | null
+  lat?: number | null
+  lng?: number | null
+  distance_km: number | null
+  portal_units: number
+  portal_exact?: number
+  portal_updated_at?: string | null
+  portal_stale?: boolean
+  call_status?: string | null
+  route?: Route
+}
+
+/** Banks as first reported by e-RaktKosh (before distances exist). */
+export interface PortalBank {
+  id: string
+  name: string
+  address?: string | null
+  phone?: string | null
+  portal_units: number
+  stale?: boolean
+  updated?: string | null
+}
+
 export interface RequestState {
   request: RequestRow & { wave: number; bank_radius_km: number; wave2_radius_km?: number; area_label?: string | null }
   hospital: { name: string; lat?: number | null; lng?: number | null }
@@ -84,6 +111,7 @@ export interface RequestState {
   needs_approval: boolean
   done: boolean
   events: BackendEvent[]
+  banks?: BankView[]
 }
 
 export interface Flags {

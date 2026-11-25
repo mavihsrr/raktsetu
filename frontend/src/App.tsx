@@ -126,6 +126,7 @@ export default function App() {
           open={panels.open.right}
           onToggle={() => panels.toggle('right')}
           flags={live.flags}
+          progress={live.progress}
         />
       </main>
     </div>

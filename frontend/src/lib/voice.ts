@@ -34,6 +34,10 @@ export class VoiceSession {
   private state: VoiceState = 'idle'
   private buf = new Float32Array(1024)
   private closedByUser = false
+  private pcs: RTCPeerConnection[] = []
+  private audioEl: HTMLAudioElement | null = null
+  private agentSpeakingUntil = 0   // ms timestamp: agent audio is playing (or just finished) until then
+  private loudFrames = 0
   muted = false
 
   private h: Handlers
@@ -86,7 +90,8 @@ export class VoiceSession {
     worklet.connect(sink).connect(ctx.destination) // keeps the worklet pulled, silently
     const silence = new ArrayBuffer(640) // 20 ms of 16 kHz PCM16
     worklet.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-      if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(this.muted ? silence : e.data)
+      if (this.ws?.readyState !== WebSocket.OPEN) return
+      this.ws.send(this.muted || this.gated() ? silence : e.data)
     }
 
     this.outGain = ctx.createGain()
@@ -95,7 +100,11 @@ export class VoiceSession {
     this.outAnalyser.minDecibels = -85
     this.outAnalyser.maxDecibels = -25
     this.outAnalyser.smoothingTimeConstant = 0.6
-    this.outGain.connect(this.outAnalyser).connect(ctx.destination)
+    this.outGain.connect(this.outAnalyser)
+    // Echo fix: the browser only cancels audio it can tell is playing. Web Audio output is often NOT
+    // cancelled on laptop speakers (the agent then hears itself and talks over you). Audio that arrives
+    // over WebRTC is, so loop the agent's voice through a local peer connection into an <audio> element.
+    if (!(await this.playViaWebRtc(ctx))) this.outAnalyser.connect(ctx.destination)
 
     const ws = new WebSocket(voiceSocketUrl())
     ws.binaryType = 'arraybuffer'
@@ -114,6 +123,47 @@ export class VoiceSession {
       }
       this.teardown()
     }
+  }
+
+  private async playViaWebRtc(ctx: AudioContext): Promise<boolean> {
+    try {
+      const dest = ctx.createMediaStreamDestination()
+      this.outAnalyser!.connect(dest)
+      const a = new RTCPeerConnection()
+      const b = new RTCPeerConnection()
+      this.pcs = [a, b]
+      a.onicecandidate = (e) => { if (e.candidate) b.addIceCandidate(e.candidate).catch(() => {}) }
+      b.onicecandidate = (e) => { if (e.candidate) a.addIceCandidate(e.candidate).catch(() => {}) }
+      dest.stream.getTracks().forEach((t) => a.addTrack(t, dest.stream))
+      const el = new Audio()
+      el.autoplay = true
+      this.audioEl = el
+      b.ontrack = (e) => { el.srcObject = e.streams[0]; el.play().catch(() => {}) }
+      await a.setLocalDescription(await a.createOffer())
+      await b.setRemoteDescription(a.localDescription!)
+      await b.setLocalDescription(await b.createAnswer())
+      await a.setRemoteDescription(b.localDescription!)
+      return true
+    } catch {
+      this.pcs.forEach((p) => p.close())
+      this.pcs = []
+      return false
+    }
+  }
+
+  /**
+   * While the agent talks (and for a moment after), send silence instead of the mic so any leftover echo
+   * is never taken for you. A clearly louder, sustained voice still gets through: that is you cutting in.
+   */
+  private gated(): boolean {
+    if (Date.now() > this.agentSpeakingUntil) { this.loudFrames = 0; return false }
+    this.loudFrames = this.rms(this.micAnalyser) > 0.5 ? this.loudFrames + 1 : 0
+    if (this.loudFrames >= 4) { // ~80 ms of real speech: barge-in
+      this.agentSpeakingUntil = 0
+      this.stopPlayback()
+      return false
+    }
+    return true
   }
 
   private onJson(raw: string) {
@@ -156,6 +206,7 @@ export class VoiceSession {
     const at = Math.max(ctx.currentTime + 0.04, this.playHead)
     node.start(at)
     this.playHead = at + buffer.duration
+    this.agentSpeakingUntil = Date.now() + (this.playHead - ctx.currentTime) * 1000 + 450
     this.sources.add(node)
     if (this.state !== 'speaking') this.set('speaking')
     node.onended = () => {
@@ -167,6 +218,7 @@ export class VoiceSession {
   private stopPlayback() {
     for (const s of this.sources) { try { s.stop() } catch { /* already stopped */ } }
     this.sources.clear()
+    this.agentSpeakingUntil = 0
     if (this.ctx) this.playHead = this.ctx.currentTime
   }
 
@@ -220,6 +272,9 @@ export class VoiceSession {
     this.stopPlayback()
     this.mic?.getTracks().forEach((t) => t.stop())
     this.mic = null
+    this.pcs.forEach((p) => p.close())
+    this.pcs = []
+    if (this.audioEl) { this.audioEl.srcObject = null; this.audioEl = null }
     this.ctx?.close().catch(() => {})
     this.ctx = null
     this.micAnalyser = this.outAnalyser = null

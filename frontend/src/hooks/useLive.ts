@@ -19,6 +19,19 @@ export function useLive(follow: () => boolean = () => false) {
   followRef.current = follow
   // live search progress ("Searching…", "Found district…") arrives before the request row exists
   const [progress, setProgress] = useState<BackendEvent[]>([])
+  // requests whose search already finished: their later progress lines belong to the request view
+  const doneRids = useRef(new Set<string>())
+  const listRef = useRef<RequestRow[]>([])
+  listRef.current = list
+
+  // a search that dies (map or portal down) must not leave a spinner on screen
+  useEffect(() => {
+    const id = setInterval(() => {
+      const cutoff = Date.now() / 1000 - 90
+      setProgress((prev) => (prev.some((p) => p.ts <= cutoff) ? prev.filter((p) => p.ts > cutoff) : prev))
+    }, 5000)
+    return () => clearInterval(id)
+  }, [])
 
   const loadList = useCallback(async () => {
     try {
@@ -65,11 +78,13 @@ export function useLive(follow: () => boolean = () => false) {
     es.onerror = () => setHealth('reconnecting')
     es.addEventListener('update', (ev) => {
       const e = JSON.parse((ev as MessageEvent).data) as BackendEvent
-      if (e.type === 'progress' && e.say) {
-        const cutoff = Date.now() / 1000 - 30
-        setProgress((prev) => [...prev.filter((p) => p.ts > cutoff && p.seq !== e.seq), e].slice(-12))
+      if (e.type === 'progress' && e.say && !doneRids.current.has(e.request_id)
+          && !listRef.current.some((r) => r.id === e.request_id)) {
+        const cutoff = Date.now() / 1000 - 90
+        setProgress((prev) => [...prev.filter((p) => p.ts > cutoff && p.seq !== e.seq), e].slice(-16))
       }
       if (e.type === 'leads_found') {
+        doneRids.current.add(e.request_id)
         // the DB copy of these progress lines now comes with the request's own events
         setProgress((prev) => prev.filter((p) => p.request_id !== e.request_id))
         // only follow a new request when this tab is the one asking (others' requests stay private)

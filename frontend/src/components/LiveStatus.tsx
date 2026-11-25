@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { AlertCircle, AlertTriangle, ArrowUpRight, Plus, Radar } from 'lucide-react'
 import { api } from '../lib/api'
 import { callRoute, type CallRoute } from '../lib/route'
-import type { Call, Flags, RequestRow, RequestState } from '../types'
+import { payloadOf } from '../lib/progress'
+import type { BackendEvent, Call, Flags, RequestRow, RequestState } from '../types'
 import { COMPONENT_LABEL, Countdown, RouteBadge, StatusPill, km } from './bits'
+import { BanksList } from './BanksList'
 import { CallRow } from './CallRow'
+import { StepFeed } from './StepFeed'
 import { RequestForm } from './RequestForm'
 import { CollapseButton, Rail } from './Rail'
 
@@ -18,11 +21,15 @@ interface Props {
   open: boolean
   onToggle: () => void
   flags: Flags | null
+  /** search steps of a request that has no row yet (tool call, map, e-RaktKosh, distances) */
+  progress: BackendEvent[]
 }
 
-export function LiveStatus({ list, selected, onSelect, state, onChanged, loadError, open, onToggle, flags }: Props) {
+export function LiveStatus({ list, selected, onSelect, state, onChanged, loadError, open, onToggle, flags, progress }: Props) {
   const [creating, setCreating] = useState(false)
-  const showForm = creating || (!state && list.length === 0)
+  const searching = progress.length > 0
+  const showForm = !searching && (creating || (!state && list.length === 0))
+  const portalBanks = [...progress].reverse().map((e) => payloadOf(e).banks).find(Boolean)
 
   if (!open) {
     const r = state?.request
@@ -68,6 +75,15 @@ export function LiveStatus({ list, selected, onSelect, state, onChanged, loadErr
 
       <div className="col-scroll">
         {loadError && <p className="banner banner-red" role="alert">{loadError}</p>}
+        {searching && (
+          <>
+            <div className="block">
+              <div className="block-head"><h3 className="block-title">Live search</h3><span className="counts">happening now</span></div>
+              <StepFeed events={progress} limit={8} />
+            </div>
+            <BanksList portal={portalBanks} locating />
+          </>
+        )}
         {showForm ? (
           <div className="block">
             <h3 className="block-title">Type a request</h3>
@@ -77,9 +93,9 @@ export function LiveStatus({ list, selected, onSelect, state, onChanged, loadErr
               onCancel={list.length ? () => setCreating(false) : undefined}
             />
           </div>
-        ) : state ? (
+        ) : state && !searching ? (
           <RequestView st={state} onChanged={onChanged} route={callRoute(flags)} />
-        ) : (
+        ) : searching ? null : (
           <p className="empty">Loading…</p>
         )}
       </div>
@@ -153,6 +169,11 @@ function RequestView({ st, onChanged, route }: { st: RequestState; onChanged: ()
         <p className="fine">Portal stock is only a lead. Donors restock the bank and never count here.</p>
       </div>
 
+      <div className="block">
+        <div className="block-head"><h3 className="block-title">Live activity</h3><span className="counts">newest first</span></div>
+        <StepFeed events={st.events} limit={8} />
+      </div>
+
       {r.status === 'planned' && (
         <div className="gate gate-blue">
           <p className="gate-q">{startQ}</p>
@@ -211,6 +232,8 @@ function RequestView({ st, onChanged, route }: { st: RequestState; onChanged: ()
           <Shortlist st={st} />
         )}
       </div>
+
+      <BanksList banks={st.banks} group={r.blood_group} locating={(st.banks ?? []).some((b) => b.distance_km == null)} />
 
       <div className="block">
         <div className="block-head">
